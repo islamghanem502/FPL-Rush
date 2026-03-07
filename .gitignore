@@ -1,0 +1,11 @@
+﻿node_modules/
+**/node_modules/
+dist/
+build/
+.env
+*.log
+tree.txt
+Problems_Faced.txt
+"Backend arc.txt"
+*.zip
+.DS_Store
