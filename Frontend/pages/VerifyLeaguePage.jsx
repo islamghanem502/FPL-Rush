@@ -52,11 +52,26 @@ const VerifyLeaguePage = () => {
             توثيق <span className="text-[#22c55e]">الحساب</span>
           </h1>
 
-          {/* شرح الإجراء - جعلته أبرز وأكبر */}
+          {/* شرح الإجراء */}
           <div className="bg-[#22c55e]/5 border border-[#22c55e]/20 rounded-3xl p-6 mb-8 shadow-inner">
             <p className="text-gray-200 text-base font-bold leading-relaxed tracking-tight">
               ⚠️ هذا الإجراء ضروري لربط حسابك ببيانات الفانتزي الرسمية، والتأكد من هويتك كمدرب حقيقي لضمان <span className="text-[#22c55e]">عدالة المنافسة وتوزيع الجوائز</span>.
             </p>
+          </div>
+
+          {/* إضافة لينك الفيديو التوضيحي هنا (أزرق وثابت) */}
+          <div className="flex justify-center mb-4">
+            <a 
+              href="https://youtu.be/UO_Hwt9v-TI" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-xs font-black bg-blue-950/30 px-5 py-2.5 rounded-full border border-blue-900/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+              </svg>
+              <span>مشاهدة كيفية اتمام تلك الخطوة</span>
+            </a>
           </div>
 
           {/* صندوق الكود والنسخ */}
@@ -98,7 +113,7 @@ const VerifyLeaguePage = () => {
 
           {error && (
             <div className="mb-8 p-5 bg-red-950/20 border-2 border-red-800/30 rounded-[25px] text-red-400 text-sm font-bold flex items-center justify-center gap-3 animate-bounce">
-               <span>❌ {error}</span>
+                <span>❌ {error}</span>
             </div>
           )}
 
@@ -134,7 +149,7 @@ const VerifyLeaguePage = () => {
                     <a href="mailto:fplrush.official@gmail.com" className="bg-slate-900 px-6 py-3 rounded-xl border border-slate-700 hover:text-[#22c55e] transition-colors">
                         📧 fplrush.official@gmail.com
                     </a>
-                    <a href="https://facebook.com/yourpage" target="_blank" className="bg-slate-900 px-6 py-3 rounded-xl border border-slate-700 hover:text-blue-400 transition-colors">
+                    <a href="https://www.facebook.com/profile.php?id=61584963545932" target="_blank" className="bg-slate-900 px-6 py-3 rounded-xl border border-slate-700 hover:text-blue-400 transition-colors">
                         🔵 صفحة الفيسبوك الرسمية
                     </a>
                 </div>

@@ -10,7 +10,7 @@ export const COLORS = {
 export const COPY = {
   LANDING: {
     heroTitle: 'FPL Rush',
-    heroSubtitle: 'أكبر منصة تحديات فانتزي في مصر',
+    heroSubtitle: 'اول منصة تحديات فانتزي مخصصة',
     heroTagline: 'لا قمار، لا رسوم.. مهارتك هي اللي هتكسبك!',
     ctaJoin: 'انضم الآن',
     ctaLogin: 'تسجيل دخول',

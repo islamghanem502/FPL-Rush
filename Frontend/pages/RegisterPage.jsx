@@ -73,9 +73,25 @@ const RegisterPage = () => {
 
           <form onSubmit={handleRegister} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                معرف فريقك (FPL ID)
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-400">
+                  معرف فريقك (FPL ID)
+                </label>
+                
+                {/* لينك الشرح باللون الأزرق وثابت بدون أنميشن */}
+                <a 
+                  href="https://youtu.be/UO_Hwt9v-TI" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors text-[11px] font-bold bg-blue-950/30 px-2.5 py-1 rounded-full border border-blue-900/50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                  </svg>
+                  <span>شاهد طريقة الحصول عليه</span>
+                </a>
+              </div>
+              
               <input
                 type="number"
                 value={fplId}
@@ -157,15 +173,15 @@ const RegisterPage = () => {
 
         <div className="w-full max-w-lg space-y-6">
           
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6 text-right">
-            <h3 className="text-[#22c55e] font-black text-sm mb-3 flex items-center justify-end gap-2 italic">
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6 text-right shadow-inner">
+            <h3 className="text-[#22c55e] font-black text-sm mb-4 flex items-center justify-end gap-2 italic">
                كيف تجد الـ ID الخاص بك؟ 🆔
             </h3>
             <div className="text-gray-400 text-xs leading-relaxed space-y-2">
               <p>1. افتح موقع الفانتزي من المتصفح (Chrome/Safari).</p>
               <p>2. ادخل على صفحة <span className="text-white font-bold italic underline">Points</span>.</p>
               <p>3. ستجد الـ ID في رابط الصفحة، مثال:</p>
-              <p className="bg-slate-900/80 p-3 rounded-lg font-mono text-center tracking-tighter text-[10px] md:text-xs">
+              <p className="bg-slate-900/80 p-3 rounded-lg font-mono text-center tracking-tighter text-[10px] md:text-xs border border-slate-700">
                 fantasy.premierleague.com/entry/<span className="text-[#22c55e] font-black text-sm">123456</span>/event/1
               </p>
             </div>
@@ -177,7 +193,7 @@ const RegisterPage = () => {
               <a href="mailto:fplrush.official@gmail.com" className="text-xs bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 text-gray-300 hover:text-white transition-all w-full md:w-auto">
                 📧 fplrush.official@gmail.com
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="text-xs bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 text-blue-400 font-bold hover:bg-slate-700 transition-all w-full md:w-auto">
+              <a href="https://www.facebook.com/profile.php?id=61584963545932" target="_blank" rel="noreferrer" className="text-xs bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 text-blue-400 font-bold hover:bg-slate-700 transition-all w-full md:w-auto">
                 🔵 صفحة الفيسبوك
               </a>
             </div>

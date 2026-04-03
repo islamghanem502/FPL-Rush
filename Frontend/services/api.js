@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://fplrush.app/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -9,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// Interceptor لإضافة التوكن في كل طلب
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -21,14 +20,12 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor للتعامل مع انتهاء الجلسة (401)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // بنعمل redirect فقط لو مش في صفحة اللوجين أصلاً
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
@@ -38,7 +35,6 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  // تعديل الـ login عشان نرجعه "صافي" للـ Context وهو اللي يخزن
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.token) {
@@ -57,7 +53,6 @@ export const authAPI = {
     return response;
   },
 
-  // إضافة روت التوثيق هنا ليكون منظماً
   verifyLeague: () => api.post('/auth/verify-league'),
 
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
@@ -86,14 +81,26 @@ export const authAPI = {
   }
 };
 
-// Challenge APIs
+
 export const challengeAPI = {
   getChallenges: () => api.get('/challenges'),
   getChallengeDetails: (id) => api.get(`/challenges/${id}`),
   getStandings: (id) => api.get(`/challenges/${id}/standings`),
-  /** @param {string} id - Challenge ID. @param {{ joinCode?: string }} payload - Optional; include joinCode when challenge requires it. */
   enroll: (id, payload = {}) => api.post(`/challenges/${id}/enroll`, payload),
   closeChallenge: (id) => api.patch(`/challenges/${id}/close`),
 };
 
+
+export const pvpAPI = {
+  // User routes
+  getChallenges: () => api.get('/pvp'),
+  getChallengeById: (id) => api.get(`/pvp/${id}`),
+  submitPrediction: (id, predictions) => api.post(`/pvp/${id}/predict`, { predictions }),
+  getStandings: (id) => api.get(`/pvp/${id}/standings`),
+  // Admin Only
+  createChallenge: (data) => api.post('/pvp/create', data),
+  syncResults: (id) => api.patch(`/pvp/${id}/sync`),
+  closeChallenge: (id) => api.patch(`/pvp/${id}/close`),
+  deleteChallenge: (id) => api.delete(`/pvp/${id}`),
+};
 export default api;

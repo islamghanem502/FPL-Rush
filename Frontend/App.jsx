@@ -11,7 +11,11 @@ import PartnershipPage from './pages/PartnershipPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ChallengePage from './pages/ChallengePage';
-import VerifyLeaguePage from './pages/VerifyLeaguePage'; 
+import VerifyLeaguePage from './pages/VerifyLeaguePage';
+
+// PvP Pages
+import PvPPredictionsPage from './pages/PvPPredictionsPage';
+import PvPRulesPage from './pages/PvPRulesPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -22,7 +26,7 @@ const App = () => {
       <Router>
         <AnimatePresence mode="wait">
           <Routes>
-            
+
             {/* ================= Public Routes ================= */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -30,47 +34,69 @@ const App = () => {
             <Route path="/Partnership" element={<PartnershipPage />} />
 
             {/* ================= Verification Route ================= */}
-            <Route 
-              path="/verify" 
+            <Route
+              path="/verify"
               element={
                 <ProtectedRoute>
                   <VerifyLeaguePage />
                 </ProtectedRoute>
-              } 
+              }
             />
 
             {/* ================= Protected Routes (Verified Users Only) ================= */}
-            <Route 
-              path="/dashboard" 
+            <Route
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <DashboardPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
-            <Route 
-              path="/challenge/:id" 
+
+            {/* Classic Challenge Route */}
+            <Route
+              path="/challenge/:id"
               element={
                 <ProtectedRoute>
                   <ChallengePage />
                 </ProtectedRoute>
-              } 
+              }
             />
 
+            {/* PvP Predictions Route */}
+            <Route
+              path="/challenge/:id/my-prediction"
+              element={
+                <ProtectedRoute>
+                  <PvPPredictionsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* PvP Rules Route */}
+            <Route
+              path="/pvp-rules"
+              element={
+                <ProtectedRoute>
+                  <PvPRulesPage />
+                </ProtectedRoute>
+              }
+            />
+
+
             {/* ================= Admin Routes ================= */}
-            <Route 
-              path="/admin" 
+            <Route
+              path="/admin"
               element={
                 <ProtectedRoute adminOnly={true}>
                   <AdminDashboard />
                 </ProtectedRoute>
-              } 
+              }
             />
 
             {/* ================= 404 Redirect ================= */}
             <Route path="*" element={<Navigate to="/" replace />} />
-            
+
           </Routes>
         </AnimatePresence>
       </Router>

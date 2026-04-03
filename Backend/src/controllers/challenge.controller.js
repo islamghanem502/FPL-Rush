@@ -98,6 +98,9 @@ exports.reorderChallenges = async (req, res) => {
         }));
 
         await Challenge.bulkWrite(bulkOps, { ordered: false });
+        
+        const PvPChallenge = require('../models/pvpChallenge.model');
+        await PvPChallenge.bulkWrite(bulkOps, { ordered: false }).catch(() => {}); // Ignore errors if some IDs are not in PvPChallenge
 
         res.status(200).json({ message: "Reordered successfully" });
     } catch (error) {
@@ -126,8 +129,8 @@ exports.enrollInChallenge = async (req, res) => {
 
         // منع الانضمام إذا كان التحدي قد انتهى زمنياً
         if (user.currentEvent > challenge.endEvent) {
-            return res.status(400).json({ 
-                message: `نعتذر، هذا التحدي انتهى في الجولة ${challenge.endEvent}. لا يمكنك الانضمام الآن.` 
+            return res.status(400).json({
+                message: `نعتذر، هذا التحدي انتهى في الجولة ${challenge.endEvent}. لا يمكنك الانضمام الآن.`
             });
         }
 
@@ -190,23 +193,23 @@ exports.getChallengeStandings = async (req, res) => {
         if (!challenge) return res.status(404).json({ message: "التحدي غير موجود" });
 
         const standings = await User.aggregate([
-            { 
-                $match: { 
-                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) 
-                } 
+            {
+                $match: {
+                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId)
+                }
             },
             { $unwind: "$joinedChallenges" },
-            { 
-                $match: { 
-                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) 
-                } 
+            {
+                $match: {
+                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId)
+                }
             },
             {
                 $project: {
                     teamName: 1,
                     managerName: 1,
                     totalPoints: 1,
-                    
+
                     challengePoints: {
                         $cond: {
                             // الشرط: هل الجولة الحالية للمستخدم أقل من جولة بداية التحدي؟
@@ -222,11 +225,11 @@ exports.getChallengeStandings = async (req, res) => {
                     joinedAt: "$joinedChallenges.joinedAt"
                 }
             },
-            { 
-                $sort: { 
-                    challengePoints: -1, 
-                    joinedAt: 1 
-                } 
+            {
+                $sort: {
+                    challengePoints: -1,
+                    joinedAt: 1
+                }
             }
         ]);
 
@@ -241,8 +244,8 @@ exports.getChallengeStandings = async (req, res) => {
 exports.closeChallengeManual = async (req, res) => {
     try {
         const { challengeId } = req.params;
-        
-        // 1. حساب الـ Standings الحالية (ممكن نستخدم نفس الـ Aggregate اللي عملناه)
+
+
         const standings = await User.aggregate([
             { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
             { $unwind: "$joinedChallenges" },
@@ -255,10 +258,9 @@ exports.closeChallengeManual = async (req, res) => {
                 }
             },
             { $sort: { challengePoints: -1 } },
-            { $limit: 3 } // ناخد التلاتة الأوائل بس
+            { $limit: 3 }
         ]);
 
-        // 2. تحديث التحدي
         const challenge = await Challenge.findByIdAndUpdate(challengeId, {
             status: 'finished',
             winners: standings.map((s, index) => ({

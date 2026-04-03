@@ -14,40 +14,40 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. فحص هل المستخدم أدمن
+  // Check Admin
   const checkAdminRole = (userData) => {
     setIsAdmin(userData?.role === 'admin');
   };
 
-  // 2. تحديث بيانات المستخدم في الـ State والـ LocalStorage (للتوثيق)
+  // Update User Info
   const updateUserInfo = useCallback((newData) => {
     setUser((prev) => {
       const updated = { ...prev, ...newData };
-      // تحديث الـ LocalStorage عشان لو عمل Refresh يفضل موثق
+      // Update LocalStorage
       const stored = JSON.parse(localStorage.getItem('user_data') || '{}');
       localStorage.setItem('user_data', JSON.stringify({ ...stored, ...updated }));
       return updated;
     });
   }, []);
 
-  // 3. دالة التسجيل (Login) المعدلة لدعم التوكن والبيانات المباشرة
+  // Login Function
   const login = async (emailOrData, password = null) => {
     setIsLoading(true);
     try {
       let userData;
       let token;
 
-      // لو باعت إيميل وباسوورد (Login عادي)
+      // If sent email and password (Login)
       if (password) {
         const response = await authAPI.login(emailOrData, password);
         userData = response.data.user;
         token = response.data.token;
-      } 
-      // لو باعت البيانات والتوكن جاهزين (بعد الـ Register مباشرة)
+      }
+      // If sent data and token ready (After Register)
       else {
         userData = emailOrData.user;
         token = emailOrData.token;
-        // تخزين التوكن يدوياً لأننا مروحناش للـ authAPI.login
+        // Store token manually because we didn't go to authAPI.login
         localStorage.setItem('auth_token', token);
       }
 
@@ -55,10 +55,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user_data', JSON.stringify(userData));
       checkAdminRole(userData);
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         isAdmin: userData.role === 'admin',
-        isVerified: userData.isVerified 
+        isVerified: userData.isVerified
       };
     } catch (error) {
       return {

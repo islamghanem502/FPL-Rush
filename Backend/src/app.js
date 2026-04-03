@@ -5,9 +5,13 @@ const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
-// CORS configuration
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000', 
+    'https://fplrush.app', 
+    'http://fplrush.app',
+    'https://www.fplrush.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -22,6 +26,6 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/challenges', require('./routes/challenge.routes'));
-
+app.use('/api/pvp', require('./routes/pvpChallenge.routes'));
 
 module.exports = app;
