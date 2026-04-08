@@ -25,8 +25,9 @@ const validateTeamId = async (teamId) => {
   try {
     const response = await axios.get(`${FPL_BASE_URL}/entry/${teamId}/`);
     const data = response.data;
+    // NOTE: we intentionally do NOT return teamId here — fpl_id is set
+    // explicitly in the controller to avoid the stale teamId_1 index conflict.
     return {
-      teamId: data.id,
       teamName: data.name,
       managerName: `${data.player_first_name} ${data.player_last_name}`,
       startedEvent: data.started_event,
@@ -47,7 +48,7 @@ const syncMultipleUsers = async (users) => {
     const allChallenges = await Challenge.find({});
     for (const user of users) {
       try {
-        const freshData = await validateTeamId(user.teamId);
+        const freshData = await validateTeamId(user.fpl_id);
         if (freshData) {
           user.totalPoints = freshData.totalPoints;
           user.overallRank = freshData.overallRank;
@@ -69,7 +70,7 @@ const syncMultipleUsers = async (users) => {
         }
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (err) {
-        console.error(`Failed to sync user ${user.teamId}:`, err.message);
+        console.error(`Failed to sync user ${user.fpl_id}:`, err.message);
       }
     }
   } catch (globalErr) {

@@ -22,7 +22,9 @@ const Navbar = () => {
     navLinks = [{ name: "الرئيسية", path: user ? "/dashboard" : "/" }];
 
     // تمت إزالة شرط صفحة "تاريخي" من هنا
-    if (!user) {
+    if (user) {
+      navLinks.push({ name: "الملف الشخصي", path: "/profile" });
+    } else {
       navLinks.push({ name: "الشركاء", path: "/partnership" });
     }
   }

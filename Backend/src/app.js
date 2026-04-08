@@ -7,8 +7,11 @@ const app = express();
 
 const corsOptions = {
   origin: [
-    'http://localhost:3000', 
-    'https://fplrush.app', 
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://192.168.1.7:3000',
+    'http://192.168.1.7:5173',
+    'https://fplrush.app',
     'http://fplrush.app',
     'https://www.fplrush.app'
   ],

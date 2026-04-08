@@ -6,12 +6,13 @@ import { AuthProvider } from './store/AuthContext';
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+// RegisterPage removed — registration is now part of the LoginPage flow
 import PartnershipPage from './pages/PartnershipPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ChallengePage from './pages/ChallengePage';
 import VerifyLeaguePage from './pages/VerifyLeaguePage';
+import ProfilePage from './pages/ProfilePage';
 
 // PvP Pages
 import PvPPredictionsPage from './pages/PvPPredictionsPage';
@@ -30,7 +31,7 @@ const App = () => {
             {/* ================= Public Routes ================= */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register" element={<Navigate to="/login" replace />} />
             <Route path="/Partnership" element={<PartnershipPage />} />
 
             {/* ================= Verification Route ================= */}
@@ -49,6 +50,16 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Profile Route */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />

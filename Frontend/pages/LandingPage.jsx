@@ -38,20 +38,12 @@ const LandingPage = () => {
               الذهاب إلى لوحة التحكم
             </Link>
           ) : (
-            <>
-              <Link
-                to="/register"
-                className="bg-[#22c55e] hover:bg-green-600 text-slate-900 font-bold text-lg px-10 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105"
-              >
-                {COPY.LANDING.ctaJoin}
-              </Link>
-              <Link
-                to="/login"
-                className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg px-10 py-4 rounded-xl border border-slate-700 transition-all transform hover:scale-105"
-              >
-                {COPY.LANDING.ctaLogin}
-              </Link>
-            </>
+            <Link
+              to="/login"
+              className="bg-[#22c55e] hover:bg-green-600 text-slate-900 font-bold text-lg px-10 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105"
+            >
+              ابدأ الآن — سجّل أو انضم
+            </Link>
           )}
         </div>
 

@@ -1,11 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
-import { authAPI } from "../services/api";
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -14,77 +8,78 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check Admin
-  const checkAdminRole = (userData) => {
-    setIsAdmin(userData?.role === 'admin');
-  };
+  const checkAdminRole = (userData) => setIsAdmin(userData?.role === 'admin');
 
-  // Update User Info
+  // ── Update partial user info ─────────────────────────────────────────────
   const updateUserInfo = useCallback((newData) => {
     setUser((prev) => {
       const updated = { ...prev, ...newData };
-      // Update LocalStorage
-      const stored = JSON.parse(localStorage.getItem('user_data') || '{}');
-      localStorage.setItem('user_data', JSON.stringify({ ...stored, ...updated }));
+      localStorage.setItem('fpl_user', JSON.stringify(updated));
       return updated;
     });
   }, []);
 
-  // Login Function
-  const login = async (emailOrData, password = null) => {
+  // ── Login: accepts fpl_id + pin_code ────────────────────────────────────
+  const login = useCallback(async (fpl_id, pin_code) => {
     setIsLoading(true);
     try {
-      let userData;
-      let token;
-
-      // If sent email and password (Login)
-      if (password) {
-        const response = await authAPI.login(emailOrData, password);
-        userData = response.data.user;
-        token = response.data.token;
-      }
-      // If sent data and token ready (After Register)
-      else {
-        userData = emailOrData.user;
-        token = emailOrData.token;
-        // Store token manually because we didn't go to authAPI.login
-        localStorage.setItem('auth_token', token);
-      }
-
+      const response = await authAPI.login(fpl_id, pin_code);
+      const { user: userData } = response.data;
       setUser(userData);
-      localStorage.setItem('user_data', JSON.stringify(userData));
       checkAdminRole(userData);
-
       return {
         success: true,
         isAdmin: userData.role === 'admin',
-        isVerified: userData.isVerified
+        isVerified: userData.isVerified,
+        hasContact: !!(userData.email || userData.phone),
       };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || "Authentication failed",
+        error: error.response?.data?.message || 'فشل تسجيل الدخول',
       };
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // ── Setup PIN (new / migrating user) ────────────────────────────────────
+  const setupPin = useCallback(async (fpl_id, pin_code) => {
+    setIsLoading(true);
+    try {
+      const response = await authAPI.setupPin(fpl_id, pin_code);
+      const { user: userData } = response.data;
+      setUser(userData);
+      checkAdminRole(userData);
+      return {
+        success: true,
+        isAdmin: userData.role === 'admin',
+        isVerified: userData.isVerified,
+        hasContact: !!(userData.email || userData.phone),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'فشل إعداد الـ PIN',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ── Restore session from stored token ───────────────────────────────────
   const loadUser = useCallback(async () => {
     const { token } = authAPI.getStoredAuth();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    if (!token) { setIsLoading(false); return; }
 
     try {
       const response = await authAPI.getCurrentUser();
       if (response.data?.user) {
         setUser(response.data.user);
         checkAdminRole(response.data.user);
+        localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
       }
-    } catch (error) {
-      console.error("Session expired or invalid");
+    } catch {
       logout();
     } finally {
       setIsLoading(false);
@@ -95,16 +90,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAdmin(false);
     authAPI.logout();
-    localStorage.removeItem('user_data');
   }, []);
 
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+  useEffect(() => { loadUser(); }, [loadUser]);
 
   return (
     <AuthContext.Provider
-      value={{ user, isAdmin, isLoading, login, logout, loadUser, updateUserInfo }}
+      value={{ user, isAdmin, isLoading, login, setupPin, logout, loadUser, updateUserInfo }}
     >
       {children}
     </AuthContext.Provider>
@@ -113,6 +105,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

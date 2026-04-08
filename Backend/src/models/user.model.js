@@ -1,13 +1,40 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-    // User Data
-    teamId: {
-        type: Number,          
+
+    // ── Primary Identifier ──────────────────────────────────────────────────
+    fpl_id: {
+        type: Number,
         required: true,
-        unique: true           
+        unique: true
     },
 
+    // ── Authentication ──────────────────────────────────────────────────────
+    pin_code: {
+        type: String,        // Bcrypt-hashed 4-digit PIN
+        required: true
+    },
+
+    is_migrated: {
+        type: Boolean,
+        default: false       // false = new user or legacy needing PIN setup
+    },
+
+    // ── Optional Contact Info ───────────────────────────────────────────────
+    email: {
+        type: String,
+        unique: true,
+        sparse: true,        // allows multiple null values
+        lowercase: true,
+        trim: true
+    },
+
+    phone: {
+        type: String,
+        trim: true
+    },
+
+    // ── FPL Profile Data (fetched from FPL API on first login) ──────────────
     teamName: {
         type: String,
         trim: true
@@ -17,26 +44,11 @@ const UserSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
-        
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true 
-    },
 
-    password: {          
-        type: String,
-        required: true,
-        minlength: 6
-    },
-
-    // FPL data - for ( CRON ) 
+    // ── FPL Stats (updated by CRON) ─────────────────────────────────────────
     startedEvent: {
-        type: Number,
-        required: true
-    },  
+        type: Number
+    },
 
     currentEvent: {
         type: Number
@@ -57,46 +69,34 @@ const UserSchema = new mongoose.Schema({
         default: 0
     },
 
-    // is Verified (Joined to FPL RUSH league)
+    // ── League Verification ─────────────────────────────────────────────────
     isVerified: {
         type: Boolean,
         default: false
     },
 
-    // To join Challenge
+    // ── Challenge Participation ─────────────────────────────────────────────
     joinedChallenges: [{
-    challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge' },
-    initialPoints: { type: Number, default: 0 }, // إجمالي نقاط اللاعب لحظة الدخول
-    joinedAt: { type: Date, default: Date.now }
+        challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge' },
+        initialPoints: { type: Number, default: 0 },
+        joinedAt: { type: Date, default: Date.now }
     }],
 
-    // For Auth
-    otp: {                
-        type: String,
-    },
-
-    otpExpiry: {
-        type: Date,
-    },
-    
+    // ── Role ────────────────────────────────────────────────────────────────
     role: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
-},
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
 
-}, { 
-    timestamps: true 
+}, {
+    timestamps: true
 });
 
-
-
-// 🔐 Hide sensitive fields
+// 🔐 Hide sensitive fields in JSON output
 UserSchema.methods.toJSON = function () {
     const user = this.toObject();
-    delete user.password;
-    delete user.otp;
-    delete user.otpExpiry;
+    delete user.pin_code;
     return user;
 };
 

@@ -93,6 +93,8 @@ const DashboardPage = () => {
           </div>
         </header>
 
+
+
         {/* =========================================
             Team Info Card (تصميم لوحة تحكم مدمجة)
         ========================================= */}
@@ -104,8 +106,8 @@ const DashboardPage = () => {
               <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-widest">فريقك الحالي</p>
               <h2 className="text-2xl md:text-3xl font-black text-white">{user?.teamName}</h2>
               <div className="flex gap-4 mt-1 text-sm text-gray-400 font-medium">
-                <p>ID: <span className="text-gray-300">{user?.teamId}</span></p>
-                <span className="text-slate-700">|</span>
+                <p>FPL ID: <span className="text-gray-300">{user?.fpl_id}</span></p>
+                <span className="text-slate-700 hidden sm:block">|</span>
                 <p className="hidden sm:block">Email: <span className="text-gray-300">{user?.email}</span></p>
               </div>
             </div>
@@ -128,6 +130,20 @@ const DashboardPage = () => {
 
           </div>
         </div>
+
+        {/* =========================================
+            Missing Contact Banner (Small & Yellow)
+        ========================================= */}
+        {(!user?.email && !user?.phone) && (
+          <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-3 md:p-4 mb-8 md:mb-12 flex flex-col sm:flex-row items-center justify-between text-right gap-3 shadow-md">
+            <div>
+              <p className="text-yellow-500 font-bold text-xs md:text-sm">⚠️ لتسهيل تسليم الجوائز، يرجى إضافة وسيلة تواصل.</p>
+            </div>
+            <Link to="/profile" className="w-full sm:w-auto bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-500 border border-yellow-600/50 outline-none font-bold py-1.5 px-4 rounded-lg transition-colors text-center text-xs whitespace-nowrap">
+              إضافة الآن
+            </Link>
+          </div>
+        )}
 
         {/* Search & Tabs Navigation */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 mb-8 md:mb-10">

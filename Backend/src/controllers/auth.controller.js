@@ -1,106 +1,243 @@
 const User = require('../models/user.model');
-const crypto = require('crypto');
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { Resend } = require("resend");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const fplService = require('../services/fpl.service');
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const generateToken = (userId) =>
+    jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '60d' });
 
-// ===== Send Email =====
-const sendMail = async (to, subject, text) => {
+const PIN_REGEX = /^\d{4}$/;
+
+// ── STEP 1: Check FPL ID → tells frontend which screen to show ───────────────
+// POST /auth/check-id
+// Body: { fpl_id: Number }
+// Response: { exists: Boolean, is_migrated: Boolean, fpl_id: Number }
+exports.checkId = async (req, res) => {
     try {
-        await resend.emails.send({
-            from: process.env.EMAIL_FROM || "Fantasy App <onboarding@resend.dev>",
-            to,
-            subject,
-            text
+        const { fpl_id } = req.body;
+
+        if (!fpl_id) {
+            return res.status(400).json({ message: 'fpl_id مطلوب' });
+        }
+
+        const fplIdNum = Number(fpl_id);
+        if (isNaN(fplIdNum) || fplIdNum <= 0) {
+            return res.status(400).json({ message: 'fpl_id غير صالح' });
+        }
+
+        const user = await User.findOne({ 
+            $or: [{ fpl_id: fplIdNum }, { teamId: fplIdNum }] 
         });
-        return true;
+
+        if (!user || !user.is_migrated) {
+            // New user OR legacy user who hasn't set a PIN yet → show "Setup PIN"
+            return res.status(200).json({
+                exists: !!user,
+                is_migrated: false,
+                fpl_id: fplIdNum,
+                message: 'show_setup'
+            });
+        }
+
+        // Existing migrated user → show "Enter PIN"
+        return res.status(200).json({
+            exists: true,
+            is_migrated: true,
+            fpl_id: fplIdNum,
+            message: 'show_login'
+        });
+
     } catch (error) {
-        console.error("Email sending error:", error);
-        return false;
+        res.status(500).json({ message: 'خطأ في التحقق من الـ ID', error: error.message });
     }
 };
 
-// ===== Helpers =====
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-const hashOTP = (otp) => crypto.createHash('sha256').update(otp).digest('hex');
 
-// ================= REGISTER =================
-exports.register = async (req, res) => {
+// ── STEP 2A: Setup PIN (new user / migration) ─────────────────────────────────
+// POST /auth/setup-pin
+// Body: { fpl_id: Number, pin_code: String (4 digits) }
+exports.setupPin = async (req, res) => {
     try {
-        const { teamId, email, password } = req.body;
+        const { fpl_id, pin_code } = req.body;
 
-        if (!teamId || !email || !password) {
-            return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+        if (!fpl_id || !pin_code) {
+            return res.status(400).json({ message: 'fpl_id و pin_code مطلوبان' });
         }
 
-
-        const emailExists = await User.findOne({ email });
-        if (emailExists) {
-            return res.status(400).json({ message: 'هذا البريد الإلكتروني مسجل بالفعل' });
+        if (!PIN_REGEX.test(pin_code)) {
+            return res.status(400).json({ message: 'الـ PIN يجب أن يكون 4 أرقام' });
         }
 
+        const fplIdNum = Number(fpl_id);
 
-        const fplData = await fplService.validateTeamId(teamId);
+        // Validate with FPL API (preserved as-is per your note)
+        const fplData = await fplService.validateTeamId(fplIdNum);
         if (!fplData) {
-            return res.status(400).json({ message: 'رقم مُعرف الفريق (Team ID) غير صحيح' });
+            return res.status(400).json({ message: 'رقم مُعرف الفريق (FPL ID) غير صحيح' });
         }
 
-
-        const teamExists = await User.findOne({ teamId: fplData.teamId });
-        if (teamExists) {
-            return res.status(400).json({ message: 'هذا الفريق مسجل بالفعل لمستخدم آخر' });
-        }
-
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-
-        const user = new User({
-            email,
-            password: hashedPassword,
-            ...fplData,
-            isVerified: false 
+        let user = await User.findOne({ 
+            $or: [{ fpl_id: fplIdNum }, { teamId: fplIdNum }] 
         });
 
-        await user.save();
+        if (user) {
+            // Legacy user migration: update PIN, mark as migrated, and ensure fpl_id is populated
+            user.fpl_id = fplIdNum;
+            user.pin_code = pin_code;
+            user.is_migrated = true;
+            // Refresh FPL data while we're here
+            if (fplData.teamName) user.teamName = fplData.teamName;
+            if (fplData.managerName) user.managerName = fplData.managerName;
+            await user.save();
+        } else {
+            // Brand new user
+            user = new User({
+                fpl_id: fplIdNum,
+                pin_code: pin_code,
+                is_migrated: true,
+                isVerified: false,
+                ...fplData,
+            });
+            await user.save();
+        }
 
+        const token = generateToken(user._id);
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-
-        res.status(201).json({
-            message: "تم إنشاء الحساب بنجاح ✅",
+        return res.status(201).json({
+            message: 'تم إعداد الـ PIN بنجاح ✅',
             token,
+            fpl_id: user.fpl_id,
             user: {
                 id: user._id,
+                fpl_id: user.fpl_id,
+                teamName: user.teamName,
+                managerName: user.managerName,
+                isVerified: user.isVerified,
+                role: user.role,
                 email: user.email,
-                teamId: user.teamId,
-                isVerified: user.isVerified 
+                phone: user.phone
             }
         });
 
     } catch (error) {
-        res.status(500).json({ message: 'خطأ أثناء التسجيل', error: error.message });
+        res.status(500).json({ message: 'خطأ أثناء إعداد الـ PIN', error: error.message });
     }
 };
 
-// ================= verify User (Joined to FPL RUSH league) =================
+
+// ── STEP 2B: Login with PIN ───────────────────────────────────────────────────
+// POST /auth/login
+// Body: { fpl_id: Number, pin_code: String }
+exports.login = async (req, res) => {
+    try {
+        const { fpl_id, pin_code } = req.body;
+
+        if (!fpl_id || !pin_code) {
+            return res.status(400).json({ message: 'fpl_id و pin_code مطلوبان' });
+        }
+
+        const fplIdNum = Number(fpl_id);
+        const user = await User.findOne({ 
+            $or: [{ fpl_id: fplIdNum }, { teamId: fplIdNum }] 
+        });
+
+        if (!user || !user.is_migrated) {
+            return res.status(400).json({ message: 'بيانات الدخول غير صحيحة' });
+        }
+
+        const isMatch = pin_code === user.pin_code;
+        if (!isMatch) {
+            return res.status(400).json({ message: 'الـ PIN غير صحيح' });
+        }
+
+        const token = generateToken(user._id);
+
+        return res.status(200).json({
+            message: 'تم تسجيل الدخول بنجاح ✅',
+            token,
+            fpl_id: user.fpl_id,
+            user: {
+                id: user._id,
+                fpl_id: user.fpl_id,
+                teamName: user.teamName,
+                managerName: user.managerName,
+                isVerified: user.isVerified,
+                role: user.role,
+                email: user.email,
+                phone: user.phone
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'خطأ أثناء تسجيل الدخول', error: error.message });
+    }
+};
+
+
+// ── STEP 3 (Optional): Save contact info after login ─────────────────────────
+// POST /auth/save-contact
+// Body: { email?: String, phone?: String }
+// Requires: Auth token
+exports.saveContact = async (req, res) => {
+    try {
+        const { email, phone } = req.body;
+
+        if (!email && !phone) {
+            return res.status(400).json({ message: 'يجب إدخال بريد إلكتروني أو رقم هاتف' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+        if (email) {
+            const emailExists = await User.findOne({ email, _id: { $ne: user._id } });
+            if (emailExists) {
+                return res.status(400).json({ message: 'هذا البريد الإلكتروني مستخدم بالفعل' });
+            }
+            user.email = email.toLowerCase().trim();
+        }
+
+        if (phone) {
+            user.phone = phone.trim();
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            message: 'تم حفظ بيانات التواصل ✅',
+            user: {
+                id: user._id,
+                fpl_id: user.fpl_id,
+                email: user.email,
+                phone: user.phone,
+                isVerified: user.isVerified
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'خطأ أثناء حفظ البيانات', error: error.message });
+    }
+};
+
+
+// ── League Verification (unchanged logic) ─────────────────────────────────────
+// POST /auth/verify-league
+// Requires: Auth token
 exports.verifyUserLeague = async (req, res) => {
     try {
-        const userId = req.user.id; 
+        const userId = req.user.id;
         const user = await User.findById(userId);
 
-        if (!user) return res.status(404).json({ message: "المستخدم غير موجود" });
-        if (user.isVerified) return res.json({ message: "أنت موثق بالفعل ✅" });
+        if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+        if (user.isVerified) return res.json({ message: 'أنت موثق بالفعل ✅' });
 
+        const MY_LEAGUE_ID = 2926375;
 
-        const MY_LEAGUE_ID = 2926375; 
-
-
-        const verification = await fplService.checkLeagueMembership(user.teamId, MY_LEAGUE_ID);
+        // Make sure to pass the correct ID to the FPL service (either fpl_id or fallback to teamId)
+        const teamIdToCheck = user.fpl_id || user.teamId;
+        const verification = await fplService.checkLeagueMembership(teamIdToCheck, MY_LEAGUE_ID);
 
         if (verification.isMember) {
             user.isVerified = true;
@@ -110,7 +247,7 @@ exports.verifyUserLeague = async (req, res) => {
 
             return res.json({
                 success: true,
-                message: "تم التحقق بنجاح! أهلاً بك في ملعب FPL RUSH 🚀",
+                message: 'تم التحقق بنجاح! أهلاً بك في ملعب FPL RUSH 🚀',
                 user: {
                     id: user._id,
                     isVerified: user.isVerified,
@@ -120,187 +257,24 @@ exports.verifyUserLeague = async (req, res) => {
         } else {
             return res.status(400).json({
                 success: false,
-                message: "لم نجد فريقك في الدوري الخاص بنا. تأكد من الانضمام للكود الصحيح ثم اضغط تحقق."
+                message: 'لم نجد فريقك في الدوري الخاص بنا. تأكد من الانضمام للكود الصحيح ثم اضغط تحقق.'
             });
         }
     } catch (error) {
-        res.status(500).json({ message: "خطأ أثناء عملية التحقق", error: error.message });
+        res.status(500).json({ message: 'خطأ أثناء عملية التحقق', error: error.message });
     }
 };
 
 
-// ================= LOGIN =================
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password)
-            return res.status(400).json({ message: "البريد الإلكتروني وكلمة المرور مطلوبان" });
-
-        // البحث عن المستخدم
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "بيانات الدخول غير صحيحة" });
-
-        // مقارنة كلمة المرور
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch)
-            return res.status(400).json({ message: "بيانات الدخول غير صحيحة" });
-
-        // توليد التوكن
-        const token = jwt.sign(
-            { id: user._id },
-            process.env.JWT_SECRET,
-            { expiresIn: "30d" }
-        );
-
-        res.status(200).json({
-            message: "تم تسجيل الدخول بنجاح ✅",
-            token,
-            user: {
-                id: user._id,
-                email: user.email,
-                teamId: user.teamId,
-                isVerified: user.isVerified // هامة جداً للتحويل (Redirection) في الفرونت إند
-            }
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ أثناء تسجيل الدخول', error: error.message });
-    }
-};
-
-// ================= FORGOT PASSWORD (SEND OTP) =================
-exports.forgotPassword = async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        if (!email)
-            return res.status(400).json({ message: "Email required" });
-
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "User not found" });
-
-        const otp = generateOTP();
-        user.otp = hashOTP(otp);
-        user.otpExpiry = Date.now() + 20 * 60 * 1000;
-        await user.save();
-
-        await sendMail(
-            email,
-            "Password Reset OTP",
-            `Your OTP is ${otp}. It expires in 20 minutes.`
-        );
-
-        res.status(200).json({ message: "OTP sent to email" });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Forgot password error', error: error.message });
-    }
-};
-
-
-// ================= VERIFY OTP (ONLY VERIFICATION) =================
-exports.verifyOTP = async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-
-        if (!email || !otp)
-            return res.status(400).json({ message: "Email and OTP required" });
-
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "User not found" });
-
-        if (Date.now() > user.otpExpiry)
-            return res.status(400).json({ message: "OTP expired" });
-
-        const hashed = hashOTP(otp);
-        if (hashed !== user.otp)
-            return res.status(400).json({ message: "Invalid OTP" });
-
-      
-
-        res.status(200).json({ 
-            message: "OTP verified successfully"
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: 'OTP verification error', error: error.message });
-    }
-};
-
-// ================= UPDATE RESET PASSWORD =================
-exports.resetPassword = async (req, res) => {
-    try {
-        const { email, otp, newPassword } = req.body;
-
-        if (!email || !otp || !newPassword)
-            return res.status(400).json({ message: "All fields required" });
-
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "User not found" });
-
-        if (Date.now() > user.otpExpiry)
-            return res.status(400).json({ message: "OTP expired" });
-
-        const hashed = hashOTP(otp);
-        if (hashed !== user.otp)
-            return res.status(400).json({ message: "Invalid OTP" });
-
-        // Hash new password before saving
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        
-        user.password = hashedPassword;
-        user.otp = undefined;
-        user.otpExpiry = undefined;
-        await user.save();
-
-        res.status(200).json({ message: "Password reset successfully ✅" });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Reset password error', error: error.message });
-    }
-};
-// ================= RESEND OTP =================
-exports.resendOTP = async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        if (!email)
-            return res.status(400).json({ message: "Email required" });
-
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "User not found" });
-
-        const otp = generateOTP();
-        user.otp = hashOTP(otp);
-        user.otpExpiry = Date.now() + 20 * 60 * 1000;
-        await user.save();
-
-        await sendMail(
-            email,
-            "New Password Reset OTP",
-            `Your new OTP is ${otp}. It expires in 20 minutes.`
-        );
-
-        res.status(200).json({ message: "New OTP sent to email" });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Resend OTP error', error: error.message });
-    }
-};
-
-// ================= GET CURRENT USER =================
+// ── Get Current Authenticated User ───────────────────────────────────────────
+// GET /auth/me
+// Requires: Auth token
 exports.getCurrentUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select("-password -otp -otpExpiry");
+        const user = await User.findById(req.user.id).select('-pin_code');
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
 
         res.status(200).json({
@@ -308,6 +282,6 @@ exports.getCurrentUser = async (req, res) => {
             user
         });
     } catch (error) {
-        res.status(500).json({ message: "Error fetching user", error: error.message });
+        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم', error: error.message });
     }
 };

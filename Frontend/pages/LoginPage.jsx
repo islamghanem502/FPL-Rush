@@ -1,333 +1,448 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useAuth } from "../store/AuthContext";
 import { authAPI } from "../services/api";
 
+// ── 4-Box PIN Input ───────────────────────────────────────────────────────────
+const PinInput = ({ value, onChange, disabled, autocomplete = "current-password" }) => {
+  const inputs = useRef([]);
+
+  const handleKey = (e, idx) => {
+    if (e.key === "Backspace") {
+      if (value[idx]) {
+        const next = value.split("");
+        next[idx] = "";
+        onChange(next.join(""));
+      } else if (idx > 0) {
+        inputs.current[idx - 1]?.focus();
+      }
+    }
+  };
+
+  const handleChange = (e, idx) => {
+    const digit = e.target.value.replace(/\D/, "").slice(-1);
+    const next = (value + "    ").slice(0, 4).split("");
+    next[idx] = digit;
+    onChange(next.join("").trimEnd());
+    if (digit && idx < 3) inputs.current[idx + 1]?.focus();
+  };
+
+  const handlePaste = (e) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    onChange(pasted);
+    inputs.current[Math.min(pasted.length, 3)]?.focus();
+    e.preventDefault();
+  };
+
+  // Auto-focus first box on mount
+  useEffect(() => { inputs.current[0]?.focus(); }, []);
+
+  return (
+    <div className="flex gap-3 justify-center" dir="ltr">
+      {[0, 1, 2, 3].map((idx) => (
+        <input
+          key={idx}
+          ref={(el) => (inputs.current[idx] = el)}
+          type="tel"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[idx] || ""}
+          onChange={(e) => handleChange(e, idx)}
+          onKeyDown={(e) => handleKey(e, idx)}
+          onPaste={handlePaste}
+          disabled={disabled}
+          autoComplete={idx === 0 ? autocomplete : "off"}
+          className="w-14 h-14 text-center text-2xl font-black bg-slate-900 border-2 border-slate-600 rounded-2xl
+                     text-white focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30
+                     transition-all disabled:opacity-40 caret-transparent"
+        />
+      ))}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STEP = { ID: "id", SETUP: "setup", LOGIN_PIN: "login_pin", PROFILE: "profile" };
+const WHATSAPP_URL = "https://wa.me/201094474067";
+
 const LoginPage = () => {
-  // ===== Login States =====
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); 
-
-  // ===== Forgot Password States =====
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [step, setStep] = useState(1);
-  const [showForgot, setShowForgot] = useState(false);
-  const [attempts, setAttempts] = useState(3);
-
-  // ===== UI States =====
+  const [step, setStep] = useState(STEP.ID);
+  const [fplId, setFplId] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [userExistsInDb, setUserExistsInDb] = useState(false); // id موجود لكن بدون PIN
+
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [authResult, setAuthResult] = useState(null);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, setupPin } = useAuth();
+  const fplInputRef = useRef(null);
 
-  // ================= LOGIN =================
-  const handleLogin = async (e) => {
+  useEffect(() => { fplInputRef.current?.focus(); }, []);
+
+  const clearError = () => setError("");
+
+  // ── Redirect after auth ───────────────────────────────────────────────────
+  const redirect = (isAdmin, isVerified, newUser) => {
+    if (isAdmin) return navigate("/admin");
+    if (newUser || !isVerified) return navigate("/verify");
+    navigate("/dashboard");
+  };
+
+  // ── Step 1: Check FPL ID ──────────────────────────────────────────────────
+  const handleCheckId = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
-
-    if (!loginEmail || !loginPassword) {
-      setError("يرجى إدخال البريد الإلكتروني وكلمة المرور");
-      setLoading(false);
+    clearError();
+    const idNum = Number(fplId);
+    if (!fplId || isNaN(idNum) || idNum <= 0) {
+      setError("يرجى إدخال رقم FPL ID صحيح");
       return;
     }
-
-    const result = await login(loginEmail, loginPassword);
-
-    if (result.success) {
-      if (result.isAdmin) {
-        navigate("/admin");
-      } else if (!result.isVerified) {
-        navigate("/verify");
+    setLoading(true);
+    try {
+      const res = await authAPI.checkId(idNum);
+      const { is_migrated, exists } = res.data;
+      setPin("");
+      setUserExistsInDb(!!exists);
+      if (is_migrated) {
+        setStep(STEP.LOGIN_PIN);
       } else {
-        navigate("/dashboard");
+        // سواء كان مستخدم جديد كلياً أو موجود بدون PIN → نطلب منه الإعداد
+        setStep(STEP.SETUP);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "تعذّر التحقق من الـ ID");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Step 2A: Setup PIN (new user) ─────────────────────────────────────────
+  const handleSetupPin = async (e) => {
+    e.preventDefault();
+    clearError();
+    if (pin.length !== 4) { setError("أدخل 4 أرقام كاملة"); return; }
+    setLoading(true);
+    const result = await setupPin(Number(fplId), pin);
+    setLoading(false);
+    if (result.success) {
+      const forcedNewUser = !userExistsInDb;
+      if (!result.hasContact) {
+        setAuthResult({ isAdmin: result.isAdmin, isVerified: result.isVerified, forcedNewUser });
+        setStep(STEP.PROFILE);
+        setPin("");
+      } else {
+        redirect(result.isAdmin, result.isVerified, forcedNewUser);
       }
     } else {
       setError(result.error);
-      setLoading(false);
+      setPin("");
     }
   };
 
-  // ================= FORGOT PASSWORD =================
-  const handleSendOtp = async () => {
-    if (!forgotEmail) {
-      setError("يرجى إدخال البريد الإلكتروني");
-      return;
-    }
-
+  // ── Step 2B: Login with PIN (existing user) ───────────────────────────────
+  const handleLoginPin = async (e) => {
+    e.preventDefault();
+    clearError();
+    if (pin.length !== 4) { setError("أدخل رمز التحقق كاملاً"); return; }
     setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      await authAPI.forgotPassword(forgotEmail);
-      setSuccess("تم إرسال رمز التحقق إلى بريدك الإلكتروني.");
-      setStep(2);
-    } catch (err) {
-      setError(err.response?.data?.message || "فشل إرسال الرمز");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      setError("أدخل رمز التحقق");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      await authAPI.verifyOTP(forgotEmail, otp);
-      setStep(3);
-      setSuccess("تم التحقق بنجاح");
-    } catch (err) {
-      setAttempts((prev) => prev - 1);
-      if (attempts - 1 <= 0) {
-        setError("تم استهلاك جميع المحاولات. أعد المحاولة من البداية.");
-        setTimeout(() => resetForgotFlow(), 2000);
+    const result = await login(Number(fplId), pin);
+    setLoading(false);
+    if (result.success) {
+      if (!result.hasContact) {
+        setAuthResult({ isAdmin: result.isAdmin, isVerified: result.isVerified, forcedNewUser: false });
+        setStep(STEP.PROFILE);
+        setPin("");
       } else {
-        setError("رمز التحقق غير صحيح");
+        redirect(result.isAdmin, result.isVerified, false);
       }
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error);
+      setPin("");
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!newPassword || !confirmPassword) {
-      setError("يرجى إدخال كلمة المرور الجديدة");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("كلمة المرور غير متطابقة");
-      return;
-    }
-
+  // ── Step 3: Save optional contact info ───────────────────────────────────
+  const handleSaveContact = async (e) => {
+    e.preventDefault();
+    clearError();
+    if (!email && !phone) { skipProfile(); return; }
     setLoading(true);
-    setError("");
-
     try {
-      await authAPI.resetPassword(forgotEmail, otp, newPassword);
-      setSuccess("تم تغيير كلمة المرور بنجاح! يمكنك تسجيل الدخول الآن.");
-      setTimeout(() => resetForgotFlow(), 2000);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setError("صيغة البريد الإلكتروني غير صحيحة");
+        setLoading(false);
+        return;
+      }
+      await authAPI.saveContact({ email: email || undefined, phone: phone || undefined });
+      skipProfile();
     } catch (err) {
-      setError(err.response?.data?.message || "فشل تغيير كلمة المرور");
+      setError(err.response?.data?.message || "فشل حفظ البيانات");
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForgotFlow = () => {
-    setShowForgot(false);
-    setStep(1);
-    setForgotEmail("");
-    setOtp("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setAttempts(3);
-    setError("");
-    setSuccess("");
+  const skipProfile = () => {
+    if (authResult) {
+      redirect(authResult.isAdmin, authResult.isVerified, authResult.forcedNewUser);
+    }
   };
+
+  // ── Back to ID step ───────────────────────────────────────────────────────
+  const goBack = () => { setStep(STEP.ID); clearError(); setPin(""); };
+
+  // ── Error alert ───────────────────────────────────────────────────────────
+  const Alert = ({ msg }) =>
+    msg ? (
+      <div className="mb-5 p-3 rounded-xl text-sm text-center font-bold
+                      bg-red-900/40 border border-red-700/60 text-red-300 animate-pulse">
+        {msg}
+      </div>
+    ) : null;
+
+  // ── FPL ID badge (shown in steps 2A & 2B) ────────────────────────────────
+  const IdBadge = () => (
+    <div className="flex items-center justify-between bg-slate-900/70 border border-slate-700/60 rounded-xl px-4 py-3 mb-2">
+      <span className="text-xs text-gray-400 font-bold">FPL ID</span>
+      <div className="flex items-center gap-3">
+        <span className="font-black text-white text-lg tracking-widest">{fplId}</span>
+        <button
+          type="button"
+          onClick={goBack}
+          className="text-[10px] text-gray-500 hover:text-[#22c55e] transition-colors border border-slate-600 hover:border-[#22c55e]/50 px-2 py-0.5 rounded-lg"
+        >
+          تغيير
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <Layout>
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-900 text-white">
-        <div className="bg-slate-800 p-10 rounded-3xl border border-slate-700 w-full max-w-lg shadow-2xl transition-all">
-          <div className="text-center mb-10">
-            <Link to="/" className="text-4xl font-black italic block mb-6 hover:opacity-80 transition-opacity">
-              FPL <span className="text-[#22c55e]">RUSH</span>
-            </Link>
-            <h2 className="text-2xl font-bold text-gray-100">تسجيل الدخول</h2>
+      <div className="flex justify-center px-4 pt-12 md:pt-10 pb-12 bg-slate-900 text-white min-h-screen items-start">
+        <div className="w-full max-w-md">
+
+          {/* ── Title ── */}
+          <div className="text-center mb-6">
+            <p className="text-gray-400 text-sm font-bold">انضم أو سجّل دخولك</p>
           </div>
 
-          {error && !showForgot && (
-            <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-xl text-red-300 text-sm text-center">
-              {error}
-            </div>
-          )}
+          {/* ── Step dots ── */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {[STEP.ID, STEP.SETUP].map((s, i) => (
+              <React.Fragment key={s}>
+                <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300
+                  ${step === STEP.ID && i === 0 ? "bg-[#22c55e] scale-125" :
+                    step !== STEP.ID && i === 1 ? "bg-[#22c55e] scale-125" :
+                      i === 0 && step !== STEP.ID ? "bg-green-700" :
+                        "bg-slate-600"}`}
+                />
+                {i === 0 && <div className={`w-16 h-0.5 rounded transition-all duration-500 ${step !== STEP.ID ? "bg-green-600" : "bg-slate-700"}`} />}
+              </React.Fragment>
+            ))}
+          </div>
 
-          {success && !showForgot && (
-            <div className="mb-4 p-3 bg-green-900/50 border border-green-700 rounded-xl text-green-300 text-sm text-center">
-              {success}
-            </div>
-          )}
+          {/* ── Card ── */}
+          <div className="bg-slate-800 rounded-3xl border border-slate-700/80 shadow-2xl p-8">
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <input
-              type="email"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-[#22c55e] transition-all"
-              placeholder="البريد الإلكتروني"
-              required
-            />
+            <Alert msg={error} />
 
+            {/* ════════ STEP 1: FPL ID ════════ */}
+            {step === STEP.ID && (
+              <form onSubmit={handleCheckId} className="space-y-5" autoComplete="on">
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 text-right">
+                    أدخل رقم الـ FPL ID الخاص بك
+                  </label>
+                  <input
+                    ref={fplInputRef}
+                    id="fpl-id-input"
+                    type="number"
+                    name="username"
+                    autoComplete="username"
+                    inputMode="numeric"
+                    value={fplId}
+                    onChange={(e) => setFplId(e.target.value)}
+                    placeholder="مثلاً: 1234567"
+                    disabled={loading}
+                    className="w-full bg-slate-900 border-2 border-slate-600 rounded-2xl px-4 py-4
+                               text-white font-bold text-xl outline-none focus:border-[#22c55e]
+                               focus:ring-2 focus:ring-[#22c55e]/20 transition-all placeholder-slate-600 text-center
+                               [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
 
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-[#22c55e] transition-all"
-                placeholder="كلمة المرور"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
+                {/* How to find FPL ID */}
+                <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 text-xs text-gray-400 text-right leading-relaxed space-y-1">
+                  <p className="text-gray-300 font-bold mb-2">📌 كيف أجد الـ ID؟</p>
+                  <p>١. افتح <span className="text-white">fantasy.premierleague.com</span></p>
+                  <p>٢. انتقل لصفحة <span className="text-white font-bold">Points</span></p>
+                  <p>٣. الرقم في رابط الصفحة هو الـ ID</p>
+                  <p className="font-mono text-center text-[10px] bg-slate-800 rounded-lg p-2 mt-2 border border-slate-700">
+                    /entry/<span className="text-[#22c55e] font-black text-xs">123456</span>/event/1
+                  </p>
+                </div>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowForgot(true)}
-                className="text-sm text-gray-400 hover:text-[#22c55e] transition-colors"
-              >
-                نسيت كلمة المرور؟
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  disabled={loading || !fplId}
+                  className="w-full bg-[#22c55e] text-slate-900 font-black py-4 rounded-2xl shadow-lg
+                             hover:bg-[#1da850] hover:scale-[1.01] active:scale-[0.98] transition-all
+                             disabled:opacity-40 disabled:cursor-not-allowed text-base"
+                >
+                  {loading ? "جاري التحقق..." : "متابعة ←"}
+                </button>
+              </form>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#22c55e] text-slate-900 font-bold py-5 rounded-xl shadow-lg transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
+            {/* ════════ STEP 2B: Login — existing user ════════ */}
+            {step === STEP.LOGIN_PIN && (
+              <form onSubmit={handleLoginPin} className="space-y-6" autoComplete="on">
+                <IdBadge />
+
+                <div className="text-center">
+                  <p className="text-base font-black text-gray-200">أدخل رمز التحقق</p>
+                  <p className="text-xs text-gray-500 mt-1">الـ PIN المكوّن من 4 أرقام</p>
+                </div>
+
+                {/* hidden username field → browser keychain links PIN to fpl_id */}
+                <input type="text" name="username" autoComplete="username" value={fplId} onChange={() => { }} className="sr-only" readOnly />
+
+                <PinInput value={pin} onChange={setPin} disabled={loading} autocomplete="current-password" />
+
+                <button
+                  type="submit"
+                  disabled={loading || pin.length !== 4}
+                  className="w-full bg-[#22c55e] text-slate-900 font-black py-4 rounded-2xl shadow-lg
+                             hover:bg-[#1da850] hover:scale-[1.01] active:scale-[0.98] transition-all
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {loading ? "جاري الدخول..." : "دخول 🚀"}
+                </button>
+
+              </form>
+            )}
+
+            {/* ════════ STEP 2A: Setup PIN — new user ════════ */}
+            {step === STEP.SETUP && (
+              <form onSubmit={handleSetupPin} className="space-y-6" autoComplete="on">
+                <IdBadge />
+
+                <div className="text-center">
+                  <p className="text-base font-black text-gray-200">حدد رمز PIN الخاص بك</p>
+                  <p className="text-xs text-gray-500 mt-1">اختر 4 أرقام ستستخدمها في كل مرة</p>
+                </div>
+
+                {/* hidden username → password manager saves PIN under this fpl_id */}
+                <input type="text" name="username" autoComplete="username" value={fplId} onChange={() => { }} className="sr-only" readOnly />
+
+                <PinInput value={pin} onChange={setPin} disabled={loading} autocomplete="new-password" />
+
+                <button
+                  type="submit"
+                  disabled={loading || pin.length !== 4}
+                  className="w-full bg-[#22c55e] text-slate-900 font-black py-4 rounded-2xl shadow-lg
+                             hover:bg-[#1da850] hover:scale-[1.01] active:scale-[0.98] transition-all
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {loading ? "جاري الإنشاء..." : "إنشاء الحساب ✅"}
+                </button>
+
+                <p className="text-center text-xs text-gray-600">
+                  لن يُطلب منك البريد الإلكتروني — الـ FPL ID + PIN كافيان 🔒
+                </p>
+              </form>
+            )}
+
+            {/* ════════ STEP 3: Profile (Optional) ════════ */}
+            {step === STEP.PROFILE && (
+              <form onSubmit={handleSaveContact} className="space-y-5" autoComplete="on">
+                <div className="text-center space-y-2">
+                  <h2 className="text-lg font-black text-gray-200">أضف وسيلة تواصل</h2>
+                  <p className="text-xs text-gray-400 font-bold bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
+                    نطلب وسيلة تواصل لإرسال الجوائز وتسليمها لك في حال فوزك في التحديات. 🎁
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1 text-right">البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="example@mail.com"
+                      dir="ltr"
+                      className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3
+                                 text-white text-sm outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e]/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1 text-right">رقم الهاتف (اختياري)</label>
+                    <input
+                      type="tel"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="01xxxxxxxxx"
+                      dir="ltr"
+                      className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3
+                                 text-white text-sm outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e]/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading || (!email && !phone)}
+                    className="flex-1 bg-[#22c55e] text-slate-900 font-black py-4 rounded-xl shadow-lg
+                               hover:bg-[#1da850] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "جاري الحفظ..." : "حفظ والمتابعة"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={skipProfile}
+                    disabled={loading}
+                    className="flex-1 bg-slate-700 text-white font-bold py-4 rounded-xl hover:bg-slate-600 transition-colors"
+                  >
+                    تجاوز (Skip)
+                  </button>
+                </div>
+              </form>
+            )}
+
+          </div>
+
+          {/* Footer */}
+          <div className="text-center mt-6">
+            <p className="text-xs text-gray-500 mb-3 font-bold">في حال واجهتك اي مشكلة</p>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 bg-green-800/30 border border-green-700/40
+                         text-green-400 hover:text-green-300 hover:bg-green-800/50
+                         text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
             >
-              {loading ? "جاري التحميل..." : "تسجيل الدخول"}
-            </button>
-          </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-700 text-center font-bold text-sm">
-            <p className="text-gray-400">
-              ليس لديك حساب؟{" "}
-              <Link to="/register" className="text-[#22c55e] hover:underline">
-                انشئ حساب جديد
-              </Link>
-            </p>
+              {/* WhatsApp icon */}
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              تواصل معنا عبر واتساب
+            </a>
           </div>
         </div>
       </div>
-
-
-      {showForgot && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-slate-800 w-full max-w-md rounded-2xl p-8 border border-slate-700 shadow-2xl relative">
-            <button
-              onClick={resetForgotFlow}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-xl font-bold mb-6 text-center">
-              استعادة كلمة المرور
-            </h3>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-xl text-red-300 text-sm text-center">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-4 p-3 bg-green-900/50 border border-green-700 rounded-xl text-green-300 text-sm text-center">
-                {success}
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-4">
-                <input
-                  type="email"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="أدخل بريدك الإلكتروني"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#22c55e]"
-                />
-                <button
-                  onClick={handleSendOtp}
-                  disabled={loading}
-                  className="w-full bg-[#22c55e] text-slate-900 font-bold py-3 rounded-xl hover:bg-[#1da850]"
-                >
-                  {loading ? "جاري الإرسال..." : "إرسال رمز التحقق"}
-                </button>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="أدخل رمز التحقق"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#22c55e]"
-                />
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={loading}
-                  className="w-full bg-[#22c55e] text-slate-900 font-bold py-3 rounded-xl hover:bg-[#1da850]"
-                >
-                  {loading ? "جاري التحقق..." : "تحقق"}
-                </button>
-                <p className="text-sm text-gray-400 text-center font-bold">
-                  المحاولات المتبقية: {attempts}
-                </p>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-4">
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="كلمة المرور الجديدة"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#22c55e]"
-                />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="تأكيد كلمة المرور"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#22c55e]"
-                />
-                <button
-                  onClick={handleResetPassword}
-                  disabled={loading}
-                  className="w-full bg-[#22c55e] text-slate-900 font-bold py-3 rounded-xl hover:bg-[#1da850]"
-                >
-                  {loading ? "جاري التغيير..." : "تغيير كلمة المرور"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </Layout>
   );
 };

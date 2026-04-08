@@ -42,10 +42,11 @@ cron.schedule('*/15 * * * *', async () => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('---------------------------------------');
   console.log('Server Time:', new Date().toLocaleString());
   console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌐 Network: http://192.168.1.7:${PORT}`);
   console.log(`🕒 Cron Job: Active (Runs every 15 minutes)`);
   console.log('---------------------------------------');
 });
