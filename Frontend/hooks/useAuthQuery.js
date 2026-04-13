@@ -3,7 +3,7 @@ import { authAPI } from '../services/api';
 import api from '../services/api';
 
 export const useUser = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('fpl_token');
 
   return useQuery({
     queryKey: ['authUser', token],
