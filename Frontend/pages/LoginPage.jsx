@@ -64,7 +64,7 @@ const PinInput = ({ value, onChange, disabled, autocomplete = "current-password"
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STEP = { ID: "id", SETUP: "setup", LOGIN_PIN: "login_pin", PROFILE: "profile" };
+const STEP = { ID: "id", SETUP: "setup", LOGIN_PIN: "login_pin" };
 const WHATSAPP_URL = "https://wa.me/201094474067";
 
 const LoginPage = () => {
@@ -75,9 +75,6 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [userExistsInDb, setUserExistsInDb] = useState(false); // id موجود لكن بدون PIN
 
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [authResult, setAuthResult] = useState(null);
 
   const navigate = useNavigate();
   const { login, setupPin } = useAuth();
@@ -132,10 +129,8 @@ const LoginPage = () => {
     setLoading(false);
     if (result.success) {
       const forcedNewUser = !userExistsInDb;
-      if (!result.hasContact) {
-        setAuthResult({ isAdmin: result.isAdmin, isVerified: result.isVerified, forcedNewUser });
-        setStep(STEP.PROFILE);
-        setPin("");
+      if (!result.isVerified || !result.hasContact) {
+        navigate("/verify");
       } else {
         redirect(result.isAdmin, result.isVerified, forcedNewUser);
       }
@@ -154,10 +149,8 @@ const LoginPage = () => {
     const result = await login(Number(fplId), pin);
     setLoading(false);
     if (result.success) {
-      if (!result.hasContact) {
-        setAuthResult({ isAdmin: result.isAdmin, isVerified: result.isVerified, forcedNewUser: false });
-        setStep(STEP.PROFILE);
-        setPin("");
+      if (!result.isVerified || !result.hasContact) {
+        navigate("/verify");
       } else {
         redirect(result.isAdmin, result.isVerified, false);
       }
@@ -167,32 +160,6 @@ const LoginPage = () => {
     }
   };
 
-  // ── Step 3: Save optional contact info ───────────────────────────────────
-  const handleSaveContact = async (e) => {
-    e.preventDefault();
-    clearError();
-    if (!email && !phone) { skipProfile(); return; }
-    setLoading(true);
-    try {
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setError("صيغة البريد الإلكتروني غير صحيحة");
-        setLoading(false);
-        return;
-      }
-      await authAPI.saveContact({ email: email || undefined, phone: phone || undefined });
-      skipProfile();
-    } catch (err) {
-      setError(err.response?.data?.message || "فشل حفظ البيانات");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const skipProfile = () => {
-    if (authResult) {
-      redirect(authResult.isAdmin, authResult.isVerified, authResult.forcedNewUser);
-    }
-  };
 
   // ── Back to ID step ───────────────────────────────────────────────────────
   const goBack = () => { setStep(STEP.ID); clearError(); setPin(""); };
@@ -281,12 +248,25 @@ const LoginPage = () => {
                 {/* How to find FPL ID */}
                 <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 text-xs text-gray-400 text-right leading-relaxed space-y-1">
                   <p className="text-gray-300 font-bold mb-2">📌 كيف أجد الـ ID؟</p>
-                  <p>١. افتح <span className="text-white">fantasy.premierleague.com</span></p>
+                  <p>١. افتح <a href="https://fantasy.premierleague.com" target="_blank" rel="noreferrer" className="text-[#22c55e] hover:underline font-bold transition-all">fantasy.premierleague.com</a></p>
                   <p>٢. انتقل لصفحة <span className="text-white font-bold">Points</span></p>
                   <p>٣. الرقم في رابط الصفحة هو الـ ID</p>
                   <p className="font-mono text-center text-[10px] bg-slate-800 rounded-lg p-2 mt-2 border border-slate-700">
                     /entry/<span className="text-[#22c55e] font-black text-xs">123456</span>/event/1
                   </p>
+                  <div className="pt-3 mt-2 border-t border-slate-700/50 flex justify-center">
+                    <a 
+                      href="https://youtu.be/9CaqW4Sm6Gs" 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-xs font-bold bg-blue-950/40 px-4 py-2 rounded-full border border-blue-900/50 hover:bg-blue-900/30"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                      </svg>
+                      <span>شاهد طريقة الحصول عليه والتسجيل</span>
+                    </a>
+                  </div>
                 </div>
 
                 <button
@@ -360,66 +340,7 @@ const LoginPage = () => {
               </form>
             )}
 
-            {/* ════════ STEP 3: Profile (Optional) ════════ */}
-            {step === STEP.PROFILE && (
-              <form onSubmit={handleSaveContact} className="space-y-5" autoComplete="on">
-                <div className="text-center space-y-2">
-                  <h2 className="text-lg font-black text-gray-200">أضف وسيلة تواصل</h2>
-                  <p className="text-xs text-gray-400 font-bold bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
-                    نطلب وسيلة تواصل لإرسال الجوائز وتسليمها لك في حال فوزك في التحديات. 🎁
-                  </p>
-                </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1 text-right">البريد الإلكتروني</label>
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@mail.com"
-                      dir="ltr"
-                      className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3
-                                 text-white text-sm outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e]/30"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1 text-right">رقم الهاتف (اختياري)</label>
-                    <input
-                      type="tel"
-                      autoComplete="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="01xxxxxxxxx"
-                      dir="ltr"
-                      className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3
-                                 text-white text-sm outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e]/30"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading || (!email && !phone)}
-                    className="flex-1 bg-[#22c55e] text-slate-900 font-black py-4 rounded-xl shadow-lg
-                               hover:bg-[#1da850] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "جاري الحفظ..." : "حفظ والمتابعة"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={skipProfile}
-                    disabled={loading}
-                    className="flex-1 bg-slate-700 text-white font-bold py-4 rounded-xl hover:bg-slate-600 transition-colors"
-                  >
-                    تجاوز (Skip)
-                  </button>
-                </div>
-              </form>
-            )}
 
           </div>
 

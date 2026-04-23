@@ -121,6 +121,7 @@ exports.getLiveBonus = async (req, res) => {
 
       // ── Bonus data ────────────────────────────────────────────────────────────
       let bonusData = [];
+      let hasOfficialBonus = false;
 
       if (status === 'finished') {
         // ── Official bonus from fixtures endpoint ─────────────────────────────
@@ -130,14 +131,19 @@ exports.getLiveBonus = async (req, res) => {
             ...(bonusStat.h || []).map((p) => ({ ...p, side: 'h' })),
             ...(bonusStat.a || []).map((p) => ({ ...p, side: 'a' })),
           ];
-          bonusData = combined.map((p) => ({
-            element: p.element,
-            bonus: p.value,
-            bps: liveMap[p.element]?.bps ?? null,
-          }));
+          if (combined.length > 0) {
+            hasOfficialBonus = true;
+            bonusData = combined.map((p) => ({
+              element: p.element,
+              bonus: p.value,
+              bps: liveMap[p.element]?.bps ?? null,
+            }));
+          }
         }
-      } else if (status === 'live' || status === 'scheduled') {
-        // ── Expected bonus from live BPS ──────────────────────────────────────
+      } 
+      
+      if (!hasOfficialBonus) {
+        // ── Expected bonus from live BPS (For live, scheduled, or newly finished matches) ─
         const bpsStat = stats?.find((s) => s.identifier === 'bps');
         if (bpsStat) {
           const fixturePlayerBPS = [

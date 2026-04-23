@@ -34,7 +34,10 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   // 5️⃣ منع التكرار: لو المستخدم Verified فعلاً وبيحاول يدخل صفحة /verify يدوياً
   if (user.isVerified && location.pathname === "/verify") {
-    return <Navigate to="/dashboard" replace />;
+    // نمنع الدخول فقط لو كان مسجل بيانات التواصل (إيميل أو رقم)
+    if (user.email || user.phone) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   // 6️⃣ العبور الآمن: لو كل الشروط تمام
