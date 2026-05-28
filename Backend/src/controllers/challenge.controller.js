@@ -188,49 +188,51 @@ exports.getChallengeStandings = async (req, res) => {
     try {
         const { challengeId } = req.params;
 
-        // 1. جلب بيانات التحدي أولاً لمعرفة جولة البداية
         const challenge = await Challenge.findById(challengeId);
         if (!challenge) return res.status(404).json({ message: "التحدي غير موجود" });
 
+        // ── Finished challenge → read frozen finalNetPoints ───────────────────
+        if (challenge.status === 'finished') {
+            const standings = await User.aggregate([
+                { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
+                { $unwind: "$joinedChallenges" },
+                { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
+                {
+                    $project: {
+                        teamName: 1,
+                        managerName: 1,
+                        totalPoints: 1,
+                        // finalNetPoints is set once on close — guaranteed not null here
+                        challengePoints: { $ifNull: ["$joinedChallenges.finalNetPoints", 0] },
+                        joinedAt: "$joinedChallenges.joinedAt"
+                    }
+                },
+                { $sort: { challengePoints: -1, joinedAt: 1 } }
+            ]);
+            return res.status(200).json(standings);
+        }
+
+        // ── Active challenge → live calculation (totalPoints - initialPoints) ─
         const standings = await User.aggregate([
-            {
-                $match: {
-                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId)
-                }
-            },
+            { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
             { $unwind: "$joinedChallenges" },
-            {
-                $match: {
-                    "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId)
-                }
-            },
+            { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
             {
                 $project: {
                     teamName: 1,
                     managerName: 1,
                     totalPoints: 1,
-
                     challengePoints: {
                         $cond: {
-                            // الشرط: هل الجولة الحالية للمستخدم أقل من جولة بداية التحدي؟
                             if: { $lt: ["$currentEvent", challenge.startEvent] },
-                            then: 0, // لو لسه مابدأش، نقاط التحدي 0
-                            else: {
-                                // لو بدأ، اطرح النقاط الحالية من النقاط اللي سجل بيها
-                                // ملاحظة: الباك إند لازم يضمن إن initialPoints لا تقل عن نقاط بداية التحدي
-                                $subtract: ["$totalPoints", "$joinedChallenges.initialPoints"]
-                            }
+                            then: 0,
+                            else: { $subtract: ["$totalPoints", "$joinedChallenges.initialPoints"] }
                         }
                     },
                     joinedAt: "$joinedChallenges.joinedAt"
                 }
             },
-            {
-                $sort: {
-                    challengePoints: -1,
-                    joinedAt: 1
-                }
-            }
+            { $sort: { challengePoints: -1, joinedAt: 1 } }
         ]);
 
         res.status(200).json(standings);
@@ -244,12 +246,16 @@ exports.getChallengeStandings = async (req, res) => {
 exports.closeChallengeManual = async (req, res) => {
     try {
         const { challengeId } = req.params;
+        const objId = new mongoose.Types.ObjectId(challengeId);
 
+        const challenge = await Challenge.findById(challengeId);
+        if (!challenge) return res.status(404).json({ message: "التحدي غير موجود" });
 
-        const standings = await User.aggregate([
-            { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
+        // ── Step 1: Calculate final net points for ALL participants ───────────
+        const allStandings = await User.aggregate([
+            { $match: { "joinedChallenges.challengeId": objId } },
             { $unwind: "$joinedChallenges" },
-            { $match: { "joinedChallenges.challengeId": new mongoose.Types.ObjectId(challengeId) } },
+            { $match: { "joinedChallenges.challengeId": objId } },
             {
                 $project: {
                     teamName: 1,
@@ -257,22 +263,47 @@ exports.closeChallengeManual = async (req, res) => {
                     challengePoints: { $subtract: ["$totalPoints", "$joinedChallenges.initialPoints"] }
                 }
             },
-            { $sort: { challengePoints: -1 } },
-            { $limit: 3 }
+            { $sort: { challengePoints: -1 } }
         ]);
 
-        const challenge = await Challenge.findByIdAndUpdate(challengeId, {
-            status: 'finished',
-            winners: standings.map((s, index) => ({
-                userId: s._id,
-                teamName: s.teamName,
-                managerName: s.managerName,
-                points: s.challengePoints,
-                rank: index + 1
-            }))
-        }, { new: true });
+        // ── Step 2: Persist finalNetPoints on every participant's subdocument ─
+        const bulkOps = allStandings.map(s => ({
+            updateOne: {
+                filter: {
+                    _id: s._id,
+                    "joinedChallenges.challengeId": objId
+                },
+                update: {
+                    $set: { "joinedChallenges.$.finalNetPoints": s.challengePoints }
+                }
+            }
+        }));
 
-        res.status(200).json({ message: "تم إغلاق التحدي وتحديد الفائزين بنجاح 🏆", challenge });
+        if (bulkOps.length) {
+            await User.bulkWrite(bulkOps, { ordered: false });
+        }
+
+        // ── Step 3: Mark challenge as finished + save top-3 winners ──────────
+        const top3 = allStandings.slice(0, 3);
+        const updatedChallenge = await Challenge.findByIdAndUpdate(
+            challengeId,
+            {
+                status: 'finished',
+                winners: top3.map((s, index) => ({
+                    userId: s._id,
+                    teamName: s.teamName,
+                    managerName: s.managerName,
+                    points: s.challengePoints,
+                    rank: index + 1
+                }))
+            },
+            { new: true }
+        );
+
+        res.status(200).json({
+            message: `تم إغلاق التحدي وتحديد الفائزين بنجاح 🏆 (${allStandings.length} مشارك)`,
+            challenge: updatedChallenge
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

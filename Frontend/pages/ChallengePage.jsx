@@ -636,7 +636,7 @@ const ChallengePage = () => {
                     style={{ background: isPvP ? "rgba(168,85,247,0.1)" : "rgba(34,197,94,0.1)" }}>
                     <span className={themeTextClass}>✅ {isPvP ? "لقد توقعت المعركة" : "أنت في المنافسة"}</span>
                     {isPvP && (
-                      <Link 
+                      <Link
                         to={`/challenge/${id}/my-prediction`}
                         className="px-4 py-1.5 bg-purple-500/20 hover:bg-purple-500 text-purple-300 hover:text-white rounded-lg transition-all border border-purple-500/40"
                       >
@@ -673,8 +673,8 @@ const ChallengePage = () => {
               {/* PvP Rules Link */}
               {isPvP && (
                 <div className="mt-3">
-                  <Link 
-                    to="/pvp-rules" 
+                  <Link
+                    to="/pvp-rules"
                     className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl transition-all text-xs sm:text-sm font-black shadow-lg hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] active:scale-[0.98]"
                   >
                     📖 شرح النقاط وقواعد المعارك
@@ -712,7 +712,7 @@ const ChallengePage = () => {
           ═══════════════════════════════════════════════ */}
           {(!isPvP || isJoinedPvP) && (
             <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/60 shadow-xl overflow-hidden mt-3">
-              
+
               {/* Podium (Shown only when Challenge is finished) */}
               {challenge.status === "finished" && !standingsLoading && (
                 <div className="pt-6 pb-2 border-b border-slate-800/50 bg-slate-800/20">

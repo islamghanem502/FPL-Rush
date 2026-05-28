@@ -78,8 +78,9 @@ const UserSchema = new mongoose.Schema({
     // ── Challenge Participation ─────────────────────────────────────────────
     joinedChallenges: [{
         challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge' },
-        initialPoints: { type: Number, default: 0 },
-        joinedAt: { type: Date, default: Date.now }
+        initialPoints:    { type: Number, default: 0 },
+        finalNetPoints:   { type: Number, default: null }, // set when challenge is closed → freezes the leaderboard
+        joinedAt:         { type: Date, default: Date.now }
     }],
 
     // ── Role ────────────────────────────────────────────────────────────────
