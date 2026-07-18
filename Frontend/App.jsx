@@ -18,6 +18,9 @@ import ProfilePage from './pages/ProfilePage';
 import PvPPredictionsPage from './pages/PvPPredictionsPage';
 import PvPRulesPage from './pages/PvPRulesPage';
 
+// Bonus Tracker
+import BonusPage from './pages/BonusPage';
+
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -33,6 +36,7 @@ const App = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<Navigate to="/login" replace />} />
             <Route path="/Partnership" element={<PartnershipPage />} />
+            <Route path="/bonus" element={<BonusPage />} />
 
             {/* ================= Verification Route ================= */}
             <Route

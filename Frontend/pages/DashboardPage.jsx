@@ -132,6 +132,23 @@ const DashboardPage = () => {
         </div>
 
         {/* =========================================
+            Live Bonus Tracker Button (Stlye matching Landing Page)
+        ========================================= */}
+        <div className="flex justify-center md:justify-end mb-10 -mt-2">
+          <Link
+            to="/bonus"
+            className="group flex items-center gap-3 bg-slate-800/70 hover:bg-slate-700/80 border border-slate-600/50 hover:border-[#22c55e]/60 text-white font-bold text-sm md:text-base px-6 py-3 rounded-2xl shadow-lg transition-all duration-300 hover:scale-105"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+            </span>
+            <span>تابع بونص اللاعبين</span>
+            <span className="text-[#22c55e] text-xs md:text-sm font-semibold group-hover:translate-x-1 transition-transform tracking-tighter">Live →</span>
+          </Link>
+        </div>
+
+        {/* =========================================
             Missing Contact Banner (Small & Yellow)
         ========================================= */}
         {(!user?.email && !user?.phone) && (

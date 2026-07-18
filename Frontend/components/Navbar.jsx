@@ -48,11 +48,10 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`text-sm font-bold transition-all hover:text-[#22c55e] ${
-                  location.pathname === link.path
+                className={`text-sm font-bold transition-all hover:text-[#22c55e] ${location.pathname === link.path
                     ? "text-[#22c55e]"
                     : "text-gray-300"
-                }`}
+                  }`}
               >
                 {link.name}
               </Link>
