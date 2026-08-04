@@ -30,5 +30,6 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/challenges', require('./routes/challenge.routes'));
 app.use('/api/pvp', require('./routes/pvpChallenge.routes'));
+app.use('/api/bonus', require('./routes/bonus.routes'));
 
 module.exports = app;
