@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const COLORS = {
@@ -24,7 +23,6 @@ export const COPY = {
     copyEmail: 'نسخ البريد الإلكتروني',
     copied: 'تم النسخ!',
     email: 'fplrush.official@gmail.com'
-
   },
   ADMIN: {
     dashboardTitle: 'لوحة التحكم - إدارة المسابقات',
@@ -34,7 +32,7 @@ export const COPY = {
   }
 };
 
-export const INITIAL_CHALLENGES: any[] = [
+export const INITIAL_CHALLENGES = [
   {
     id: '1',
     title: 'تحدي العمالقة - الأسبوع 20-25',
