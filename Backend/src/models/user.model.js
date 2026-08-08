@@ -2,39 +2,68 @@ const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
 
-    // ── Primary Identifier ──────────────────────────────────────────────────
-    fpl_id: {
-        type: Number,
-        required: true,
-        unique: true
-    },
-
-    // ── Authentication ──────────────────────────────────────────────────────
-    pin_code: {
-        type: String,        // Bcrypt-hashed 4-digit PIN
-        required: true
-    },
-
-    is_migrated: {
-        type: Boolean,
-        default: false       // false = new user or legacy needing PIN setup
-    },
-
-    // ── Optional Contact Info ───────────────────────────────────────────────
+    // ── Authentication ───────────────────────────────────────────────────────
     email: {
         type: String,
+        required: true,
         unique: true,
-        sparse: true,        // allows multiple null values
         lowercase: true,
         trim: true
     },
 
-    phone: {
+    password: {
         type: String,
-        trim: true
+        default: null   // null for Google OAuth users (future)
     },
 
-    // ── FPL Profile Data (fetched from FPL API on first login) ──────────────
+    authProvider: {
+        type: String,
+        enum: ['local', 'google'],
+        default: 'local'
+    },
+
+    googleId: {
+        type: String,
+        default: null,
+        sparse: true
+    },
+
+    // ── Email Verified removed — no verification step on register ──────────
+
+    // ── Password Reset (via Resend email) ───────────────────────────────────
+    passwordResetToken: {
+        type: String,
+        default: null
+    },
+
+    passwordResetExpires: {
+        type: Date,
+        default: null
+    },
+
+    // ── Account Status (2-stage flow) ────────────────────────────────────────
+    // registered   → signed up, can browse (read-only)
+    // fpl_linked   → FPL ID connected, full access
+    accountStatus: {
+        type: String,
+        enum: ['registered', 'fpl_linked'],
+        default: 'registered'
+    },
+
+    // ── FPL Identity (linked AFTER email verification) ───────────────────────
+    fpl_id: {
+        type: Number,
+        unique: true,
+        sparse: true,    // allows multiple null values
+        default: null
+    },
+
+    fpl_linked_at: {
+        type: Date,
+        default: null
+    },
+
+    // ── FPL Profile Data (fetched from FPL API on link) ──────────────────────
     teamName: {
         type: String,
         trim: true
@@ -69,7 +98,8 @@ const UserSchema = new mongoose.Schema({
         default: 0
     },
 
-    // ── League Verification ─────────────────────────────────────────────────
+    // ── League Verification (still used by challenges) ───────────────────────
+    // true = user is a member of the private FPL Rush league
     isVerified: {
         type: Boolean,
         default: false
@@ -79,7 +109,7 @@ const UserSchema = new mongoose.Schema({
     joinedChallenges: [{
         challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge' },
         initialPoints:    { type: Number, default: 0 },
-        finalNetPoints:   { type: Number, default: null }, // set when challenge is closed → freezes the leaderboard
+        finalNetPoints:   { type: Number, default: null },
         joinedAt:         { type: Date, default: Date.now }
     }],
 
@@ -90,6 +120,12 @@ const UserSchema = new mongoose.Schema({
         default: 'user'
     },
 
+    // ── Contact ─────────────────────────────────────────────────────────────
+    phone: {
+        type: String,
+        trim: true
+    },
+
 }, {
     timestamps: true
 });
@@ -97,7 +133,10 @@ const UserSchema = new mongoose.Schema({
 // 🔐 Hide sensitive fields in JSON output
 UserSchema.methods.toJSON = function () {
     const user = this.toObject();
-    delete user.pin_code;
+    delete user.password;
+    delete user.passwordResetToken;
+    delete user.passwordResetExpires;
+    delete user.googleId;
     return user;
 };
 

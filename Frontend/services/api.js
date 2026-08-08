@@ -36,36 +36,70 @@ api.interceptors.response.use(
 // ── Auth API ─────────────────────────────────────────────────────────────────
 export const authAPI = {
 
-  // Step 1: Check if fpl_id exists and whether user needs setup or login
-  checkId: (fpl_id) => api.post('/auth/check-id', { fpl_id }),
-
-  // Step 2A: New / migrating user sets up their PIN
-  setupPin: async (fpl_id, pin_code) => {
-    const response = await api.post('/auth/setup-pin', { fpl_id, pin_code });
+  // Register with Email + Password
+  register: async (email, password) => {
+    const response = await api.post('/auth/register', { email, password });
     if (response.data.token) {
       localStorage.setItem('fpl_token', response.data.token);
+      localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
+    }
+    return response;
+  },
+
+  // Google Sign-In / OAuth
+  googleAuth: async (credential) => {
+    const response = await api.post('/auth/google', { credential });
+    if (response.data.token) {
+      localStorage.setItem('fpl_token', response.data.token);
+      if (response.data.user?.fpl_id) {
+        localStorage.setItem('fpl_id', String(response.data.user.fpl_id));
+      }
+      localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
+    }
+    return response;
+  },
+
+  // Login with Email + Password
+  login: async (email, password) => {
+    const response = await api.post('/auth/login', { email, password });
+    if (response.data.token) {
+      localStorage.setItem('fpl_token', response.data.token);
+      if (response.data.user?.fpl_id) {
+        localStorage.setItem('fpl_id', String(response.data.user.fpl_id));
+      }
+      localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
+    }
+    return response;
+  },
+
+  // Link FPL ID after registration/login
+  linkFpl: async (fpl_id) => {
+    const response = await api.post('/auth/link-fpl', { fpl_id });
+    if (response.data.user) {
       localStorage.setItem('fpl_id', String(fpl_id));
       localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
     }
     return response;
   },
 
-  // Step 2B: Existing user logs in with PIN
-  login: async (fpl_id, pin_code) => {
-    const response = await api.post('/auth/login', { fpl_id, pin_code });
-    if (response.data.token) {
-      localStorage.setItem('fpl_token', response.data.token);
-      localStorage.setItem('fpl_id', String(fpl_id));
-      localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
-    }
-    return response;
-  },
+  // Forgot password
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
 
-  // Step 3 (optional): Save email / phone
-  saveContact: (data) => api.post('/auth/save-contact', data),
+  // Verify reset OTP code
+  verifyResetCode: (email, code) => api.post('/auth/verify-reset-code', { email, code }),
+
+  // Reset password
+  resetPassword: (email, code, newPassword) => api.post('/auth/reset-password', { email, code, newPassword }),
 
   // League verification
-  verifyLeague: () => api.post('/auth/verify-league'),
+  verifyLeague: async () => {
+    const response = await api.post('/auth/verify-league');
+    if (response.data.user) {
+      const stored = authAPI.getStoredAuth().user || {};
+      localStorage.setItem('fpl_user', JSON.stringify({ ...stored, ...response.data.user }));
+    }
+    return response;
+  },
 
   // Current user
   getCurrentUser: () => api.get('/auth/me'),
