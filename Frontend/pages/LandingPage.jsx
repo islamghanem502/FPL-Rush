@@ -28,42 +28,35 @@ const LandingPage = () => {
           </div>
         </motion.div>
 
-        {/* 🎉 Season 1 Celebration Banner */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="max-w-2xl bg-slate-900/40 backdrop-blur-md border border-yellow-500/20 rounded-3xl p-5 md:p-6 mb-8 shadow-[0_0_30px_rgba(234,179,8,0.05)] relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500" />
-          <div className="flex flex-col items-center gap-2 text-center">
-            <span className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-3.5 py-1 rounded-full text-xs font-black tracking-wider uppercase mb-1">
-              حصاد الموسم الأول
-            </span>
-            <h2 className="text-lg md:text-2xl font-black text-white leading-snug">
-              انتهى الموسم الأول من FPL Rush بنجاح! +200 مدرب شاركونا المنافسة 🏆
-            </h2>
-            <p className="text-gray-400 text-xs md:text-sm font-semibold leading-relaxed mt-2 max-w-xl">
-              شكرا لكل من ساهم وشارك في نجاح هذه التجربة الاستثنائية.
-            </p>
-          </div>
-        </motion.div>
 
-        <div className="flex flex-wrap justify-center gap-4 mt-8">
+
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 w-full max-w-md">
 
           {user ? (
             <Link
               to="/dashboard"
-              className="bg-[#22c55e] hover:bg-green-600 text-slate-900 font-bold text-lg px-10 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105"
+              className="w-full bg-[#22c55e] hover:bg-green-600 text-slate-900 font-black text-lg px-8 py-4 rounded-2xl shadow-xl transition-all transform hover:scale-105"
             >
-              الذهاب إلى لوحة التحكم
+              الذهاب إلى لوحة التحكم ⚽
             </Link>
           ) : (
-            <Link
-              to="/login"
-              className="bg-[#22c55e] hover:bg-green-600 text-slate-900 font-bold text-lg px-10 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105"
-            >
-              ابدأ الآن — سجّل أو انضم
-            </Link>
+            <>
+              {/* Button 1: Register */}
+              <Link
+                to="/register"
+                className="flex-1 bg-[#22c55e] hover:bg-[#1da850] text-slate-950 font-black text-lg px-8 py-4 rounded-2xl shadow-lg shadow-green-500/20 transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>انضم الآن 🚀</span>
+              </Link>
+
+              {/* Button 2: Login */}
+              <Link
+                to="/login"
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-black text-lg px-8 py-4 rounded-2xl border border-slate-600/80 hover:border-[#22c55e]/50 transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>تسجيل الدخول ⚡</span>
+              </Link>
+            </>
           )}
         </div>
 

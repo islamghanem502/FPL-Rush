@@ -72,7 +72,7 @@ const DashboardPage = () => {
           {/* رسالة الترحيب */}
           <div className="space-y-1 md:space-y-2">
             <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter text-white">
-              أهلاً يا بطل، <span className="text-[#22c55e]">{user?.managerName}</span> ⚽
+              أهلاً يا بطل، <span className="text-[#22c55e]">{user?.managerName || user?.email?.split('@')[0] || "مدرب الفانتزي"}</span> ⚽
             </h1>
             <p className="text-gray-400 text-sm md:text-base font-medium">مستعد لتحديات الجولة الجديدة؟</p>
           </div>
@@ -82,18 +82,16 @@ const DashboardPage = () => {
             <div className="flex-1 lg:flex-none bg-slate-900/40 backdrop-blur-md border border-slate-700/50 p-5 md:px-8 md:py-6 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden group shadow-lg">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-500 to-transparent opacity-50"></div>
               <span className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1 md:mb-2">إجمالي النقاط</span>
-              <span className="text-3xl md:text-4xl font-black text-white">{user?.totalPoints?.toLocaleString()}</span>
+              <span className="text-3xl md:text-4xl font-black text-white">{user?.isVerified ? (user?.totalPoints?.toLocaleString() ?? 0) : "-"}</span>
             </div>
 
             <div className="flex-1 lg:flex-none bg-slate-900/40 backdrop-blur-md border border-slate-700/50 p-5 md:px-8 md:py-6 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden shadow-lg">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-80"></div>
-              <span className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1 md:mb-2 truncate max-w-full">نقاط الجولة {user?.currentEvent}</span>
-              <span className="text-3xl md:text-4xl font-black text-[#22c55e]">{user?.lastGwPoints}</span>
+              <span className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1 md:mb-2 truncate max-w-full">نقاط الجولة {user?.currentEvent || ""}</span>
+              <span className="text-3xl md:text-4xl font-black text-[#22c55e]">{user?.isVerified ? (user?.lastGwPoints ?? 0) : "-"}</span>
             </div>
           </div>
         </header>
-
-
 
         {/* =========================================
             Team Info Card (تصميم لوحة تحكم مدمجة)
@@ -104,9 +102,9 @@ const DashboardPage = () => {
             {/* بيانات الفريق الأساسية */}
             <div className="flex flex-col gap-1 w-full md:w-auto">
               <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-widest">فريقك الحالي</p>
-              <h2 className="text-2xl md:text-3xl font-black text-white">{user?.teamName}</h2>
+              <h2 className="text-2xl md:text-3xl font-black text-white">{user?.teamName || (user?.isVerified ? "غير محدد" : "لم يتم التوثيق بعد ⚠️")}</h2>
               <div className="flex gap-4 mt-1 text-sm text-gray-400 font-medium">
-                <p>FPL ID: <span className="text-gray-300">{user?.fpl_id}</span></p>
+                <p>FPL ID: <span className="text-gray-300">{user?.fpl_id || "غير مربوط"}</span></p>
                 <span className="text-slate-700 hidden sm:block">|</span>
                 <p className="hidden sm:block">Email: <span className="text-gray-300">{user?.email}</span></p>
               </div>
@@ -120,11 +118,11 @@ const DashboardPage = () => {
             <div className="flex gap-10 md:gap-12 w-full md:w-auto justify-start md:justify-end">
               <div className="text-right">
                 <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1">الترتيب العام</p>
-                <p className="text-[#22c55e] font-black text-xl md:text-2xl">#{user?.overallRank?.toLocaleString()}</p>
+                <p className="text-[#22c55e] font-black text-xl md:text-2xl">{user?.isVerified && user?.overallRank ? `#${user.overallRank.toLocaleString()}` : "-"}</p>
               </div>
               <div className="text-right">
                 <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1">انضم من</p>
-                <p className="text-white font-black text-xl md:text-2xl">GW {user?.startedEvent}</p>
+                <p className="text-white font-black text-xl md:text-2xl">{user?.isVerified && user?.startedEvent ? `GW ${user.startedEvent}` : "-"}</p>
               </div>
             </div>
 

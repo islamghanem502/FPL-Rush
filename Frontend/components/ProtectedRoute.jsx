@@ -6,11 +6,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, isAdmin, isLoading } = useAuth();
   const location = useLocation();
 
-  // 1️⃣ حالة التحميل: بنظهر Spinner أو رسالة بسيطة لحد ما نتأكد من حالة التوكن
+  // 1️⃣ حالة التحميل
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-cyan-500">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-[#22c55e]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#22c55e]"></div>
       </div>
     );
   }
@@ -20,27 +20,16 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 3️⃣ حماية الأدمن: لو الصفحة مخصصة للأدمن فقط والمستخدم عادي
+  // 3️⃣ حماية الأدمن
   if (adminOnly && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 4️⃣ حماية التوثيق (Logic الجديد):
-  // لو المستخدم مسجل دخول بس لسه مش Verified (isVerified: false)
-  // والصفحة اللي بيحاول يدخلها مش صفحة التحقق نفسها
-  if (!user.isVerified && location.pathname !== "/verify") {
-    return <Navigate to="/verify" replace />;
+  // 4️⃣ حماية التوثيق التام: منع دخول الداشبورد والأجزاء المحمية إلا إذا كان الحساب موثقاً بالكامل 100%
+  if (!user.isVerified) {
+    return <Navigate to="/register" replace />;
   }
 
-  // 5️⃣ منع التكرار: لو المستخدم Verified فعلاً وبيحاول يدخل صفحة /verify يدوياً
-  if (user.isVerified && location.pathname === "/verify") {
-    // نمنع الدخول فقط لو كان مسجل بيانات التواصل (إيميل أو رقم)
-    if (user.email || user.phone) {
-      return <Navigate to="/dashboard" replace />;
-    }
-  }
-
-  // 6️⃣ العبور الآمن: لو كل الشروط تمام
   return children;
 };
 

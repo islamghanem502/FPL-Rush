@@ -19,19 +19,43 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  // ── Login: accepts fpl_id + pin_code ────────────────────────────────────
-  const login = useCallback(async (fpl_id, pin_code) => {
+  // ── Register: accepts email + password ───────────────────────────────────
+  const register = useCallback(async (email, password) => {
     setIsLoading(true);
     try {
-      const response = await authAPI.login(fpl_id, pin_code);
+      const response = await authAPI.register(email, password);
       const { user: userData } = response.data;
       setUser(userData);
       checkAdminRole(userData);
       return {
         success: true,
+        user: userData,
+        message: response.data.message
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'فشل إنشاء الحساب',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ── Login: accepts email + password ──────────────────────────────────────
+  const login = useCallback(async (email, password) => {
+    setIsLoading(true);
+    try {
+      const response = await authAPI.login(email, password);
+      const { user: userData } = response.data;
+      setUser(userData);
+      checkAdminRole(userData);
+      return {
+        success: true,
+        user: userData,
         isAdmin: userData.role === 'admin',
-        isVerified: userData.isVerified,
-        hasContact: !!(userData.email || userData.phone),
+        accountStatus: userData.accountStatus,
+        isVerified: userData.isVerified
       };
     } catch (error) {
       return {
@@ -43,24 +67,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ── Setup PIN (new / migrating user) ────────────────────────────────────
-  const setupPin = useCallback(async (fpl_id, pin_code) => {
+  // ── Link FPL ID ──────────────────────────────────────────────────────────
+  const linkFpl = useCallback(async (fpl_id) => {
     setIsLoading(true);
     try {
-      const response = await authAPI.setupPin(fpl_id, pin_code);
+      const response = await authAPI.linkFpl(fpl_id);
       const { user: userData } = response.data;
       setUser(userData);
       checkAdminRole(userData);
       return {
         success: true,
-        isAdmin: userData.role === 'admin',
-        isVerified: userData.isVerified,
-        hasContact: !!(userData.email || userData.phone),
+        user: userData,
+        message: response.data.message
       };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'فشل إعداد الـ PIN',
+        error: error.response?.data?.message || 'فشل ربط حساب FPL',
       };
     } finally {
       setIsLoading(false);
@@ -80,7 +103,34 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('fpl_user', JSON.stringify(response.data.user));
       }
     } catch {
-      logout();
+      authAPI.logout();
+      setUser(null);
+      setIsAdmin(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ── Google Login: accepts credential (ID Token) ──────────────────────────
+  const googleLogin = useCallback(async (credential) => {
+    setIsLoading(true);
+    try {
+      const response = await authAPI.googleAuth(credential);
+      const { user: userData } = response.data;
+      setUser(userData);
+      checkAdminRole(userData);
+      return {
+        success: true,
+        user: userData,
+        isAdmin: userData.role === 'admin',
+        accountStatus: userData.accountStatus,
+        isVerified: userData.isVerified
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'فشل تسجيل الدخول بواسطة Google',
+      };
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +146,18 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, isAdmin, isLoading, login, setupPin, logout, loadUser, updateUserInfo }}
+      value={{
+        user,
+        isAdmin,
+        isLoading,
+        register,
+        login,
+        googleLogin,
+        linkFpl,
+        logout,
+        loadUser,
+        updateUserInfo
+      }}
     >
       {children}
     </AuthContext.Provider>

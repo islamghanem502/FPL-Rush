@@ -1,36 +1,48 @@
 const express = require('express');
 const router = express.Router();
 const {
-    checkId,
-    setupPin,
+    register,
     login,
-    saveContact,
+    forgotPassword,
+    verifyResetCode,
+    resetPassword,
+    linkFplId,
     verifyUserLeague,
     getCurrentUser,
+    googleAuth
 } = require('../controllers/auth.controller');
 
 const authMiddleware = require('../middlewares/auth.middleware');
 
 // ── Public Routes ─────────────────────────────────────────────────────────────
 
-// Step 1: Check if fpl_id exists and its migration status
-router.post('/check-id', checkId);
+// Register with email + password → JWT returned immediately (no email step)
+router.post('/register', register);
 
-// Step 2A: New user or legacy user sets up a PIN
-router.post('/setup-pin', setupPin);
+// Google Sign-In / OAuth
+router.post('/google', googleAuth);
 
-// Step 2B: Existing (migrated) user logs in with their PIN
+// Login with email + password
 router.post('/login', login);
 
-// ── Protected Routes ──────────────────────────────────────────────────────────
+// Forgot password → sends reset link via Resend
+router.post('/forgot-password', forgotPassword);
 
-// Step 3 (Optional): Save email/phone contact info
-router.post('/save-contact', authMiddleware, saveContact);
+// Verify reset OTP code
+router.post('/verify-reset-code', verifyResetCode);
 
-// Verify league membership (unchanged)
+// Reset password with token from email
+router.post('/reset-password', resetPassword);
+
+// ── Protected Routes (requires JWT) ──────────────────────────────────────────
+
+// Link FPL ID (any logged-in user can do this)
+router.post('/link-fpl', authMiddleware, linkFplId);
+
+// Verify league membership (requires fpl_linked — enforced in controller)
 router.post('/verify-league', authMiddleware, verifyUserLeague);
 
-// Get current authenticated user info
+// Get current authenticated user
 router.get('/me', authMiddleware, getCurrentUser);
 
 module.exports = router;

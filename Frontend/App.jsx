@@ -1,12 +1,13 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './store/AuthContext';
 
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
-// RegisterPage removed — registration is now part of the LoginPage flow
+import RegisterPage from './pages/RegisterPage';
 import PartnershipPage from './pages/PartnershipPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -26,7 +27,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => {
   return (
-    <AuthProvider>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
+      <AuthProvider>
       <Router>
         <AnimatePresence mode="wait">
           <Routes>
@@ -34,7 +36,7 @@ const App = () => {
             {/* ================= Public Routes ================= */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<Navigate to="/login" replace />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/Partnership" element={<PartnershipPage />} />
             <Route path="/bonus" element={<BonusPage />} />
 
@@ -115,7 +117,8 @@ const App = () => {
           </Routes>
         </AnimatePresence>
       </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 };
 
