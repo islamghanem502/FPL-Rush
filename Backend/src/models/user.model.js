@@ -108,9 +108,9 @@ const UserSchema = new mongoose.Schema({
     // ── Challenge Participation ─────────────────────────────────────────────
     joinedChallenges: [{
         challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge' },
-        initialPoints:    { type: Number, default: 0 },
-        finalNetPoints:   { type: Number, default: null },
-        joinedAt:         { type: Date, default: Date.now }
+        initialPoints: { type: Number, default: 0 },
+        finalNetPoints: { type: Number, default: null },
+        joinedAt: { type: Date, default: Date.now }
     }],
 
     // ── Role ────────────────────────────────────────────────────────────────
@@ -120,11 +120,37 @@ const UserSchema = new mongoose.Schema({
         default: 'user'
     },
 
+    // ── Profile Extras ──────────────────────────────────────────────────────
+    // avatar: رابط صورة البروفايل المرفوعة على Cloudinary
+    avatar: {
+        type: String,
+        default: null
+    },
+
+    // avatarPublicId: مُعرف الصورة في Cloudinary لحذفها عند الرفع الجديد
+    avatarPublicId: {
+        type: String,
+        default: null
+    },
+
+    // country: الدولة المسحوبة تلقائياً من FPL API من حقل player_region_name
+    country: {
+        type: String,
+        default: null
+    },
+
+    // countryCode: رمز الدولة المسحوب من FPL API من حقل player_region_iso_code_short
+    countryCode: {
+        type: String,
+        default: null
+    },
+
     // ── Contact ─────────────────────────────────────────────────────────────
     phone: {
         type: String,
         trim: true
     },
+
 
 }, {
     timestamps: true
