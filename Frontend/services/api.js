@@ -104,6 +104,29 @@ export const authAPI = {
   // Current user
   getCurrentUser: () => api.get('/auth/me'),
 
+  // Update profile details (phone, country, favoriteTeam, bio, email)
+  updateProfile: async (data) => {
+    const response = await api.put('/auth/profile', data);
+    if (response.data.user) {
+      const stored = authAPI.getStoredAuth().user || {};
+      localStorage.setItem('fpl_user', JSON.stringify({ ...stored, ...response.data.user }));
+    }
+    return response;
+  },
+
+  // Upload avatar image to Cloudinary
+  uploadAvatar: async (image) => {
+    const response = await api.post('/auth/upload-avatar', { image });
+    if (response.data.user) {
+      const stored = authAPI.getStoredAuth().user || {};
+      localStorage.setItem('fpl_user', JSON.stringify({ ...stored, ...response.data.user }));
+    }
+    return response;
+  },
+
+  // Get FPL gameweek history & chips
+  getFplHistory: () => api.get('/auth/fpl-history'),
+
   // Logout
   logout: () => {
     localStorage.removeItem('fpl_token');
@@ -122,6 +145,7 @@ export const authAPI = {
     return { token, user };
   },
 };
+
 
 // ── Challenge API (unchanged) ─────────────────────────────────────────────────
 export const challengeAPI = {

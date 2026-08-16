@@ -34,7 +34,9 @@ const validateTeamId = async (teamId) => {
       currentEvent: data.current_event,
       totalPoints: data.summary_overall_points,
       overallRank: data.summary_overall_rank,
-      lastGwPoints: data.summary_event_points
+      lastGwPoints: data.summary_event_points,
+      country: data.player_region_name,
+      countryCode: data.player_region_iso_code_short
     };
   } catch (error) {
     console.error(`Error fetching FPL data for team ${teamId}:`, error.message);
@@ -54,6 +56,8 @@ const syncMultipleUsers = async (users) => {
           user.overallRank = freshData.overallRank;
           user.lastGwPoints = freshData.lastGwPoints;
           user.currentEvent = freshData.currentEvent;
+          if (freshData.country) user.country = freshData.country;
+          if (freshData.countryCode) user.countryCode = freshData.countryCode;
 
           if (user.joinedChallenges && user.joinedChallenges.length > 0) {
             user.joinedChallenges.forEach(joined => {
@@ -175,11 +179,26 @@ const getPlayersForSearch = async () => {
   }
 };
 
+const getUserFplHistory = async (fplId) => {
+  try {
+    const response = await axios.get(`${FPL_BASE_URL}/entry/${fplId}/history/`);
+    return {
+      current: response.data.current || [],
+      chips: response.data.chips || [],
+      past: response.data.past || []
+    };
+  } catch (error) {
+    console.error(`Error fetching FPL history for entry ${fplId}:`, error.message);
+    return { current: [], chips: [], past: [] };
+  }
+};
+
 module.exports = {
   validateTeamId,
   syncMultipleUsers,
   syncPvPChallenges,
   checkLeagueMembership,
   getPlayersForSearch,
-  isGwDeadlinePassed
+  isGwDeadlinePassed,
+  getUserFplHistory
 };

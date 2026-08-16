@@ -85,14 +85,25 @@ const PlayerRow = ({ player, index, isCurrentUser, isSticky, isPvP }) => (
       </div>
     </td>
     <td className="p-2.5 sm:p-4">
-      <div className={`font-black text-xs sm:text-sm text-white truncate flex items-center gap-1.5 max-w-[140px] sm:max-w-[260px]`}>
-        <span className="truncate">{player.teamName}</span>
-        {isCurrentUser && (
-          <span className={`text-[8px] ${isPvP ? "bg-purple-500 text-white" : "bg-[#22c55e] text-[#04120A]"} px-1.5 py-0.5 rounded-full font-black uppercase shrink-0`}>أنت</span>
-        )}
-      </div>
-      <div className="text-[10px] text-gray-500 font-bold mt-0.5 truncate max-w-[140px] sm:max-w-[260px]">
-        {player.managerName}
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-700 bg-slate-800 shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+          {player.avatar ? (
+            <img src={player.avatar} alt={player.managerName} className="w-full h-full object-cover" />
+          ) : (
+            <span>{player.managerName ? player.managerName.charAt(0).toUpperCase() : '👤'}</span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className={`font-black text-xs sm:text-sm text-white truncate flex items-center gap-1.5 max-w-[120px] sm:max-w-[240px]`}>
+            <span className="truncate">{player.teamName}</span>
+            {isCurrentUser && (
+              <span className={`text-[8px] ${isPvP ? "bg-purple-500 text-white" : "bg-[#22c55e] text-[#04120A]"} px-1.5 py-0.5 rounded-full font-black uppercase shrink-0`}>أنت</span>
+            )}
+          </div>
+          <div className="text-[10px] text-gray-500 font-bold mt-0.5 truncate max-w-[120px] sm:max-w-[240px]">
+            {player.managerName} {player.country ? `• ${player.country}` : ''}
+          </div>
+        </div>
       </div>
     </td>
     <td className="p-2.5 sm:p-4 text-center">

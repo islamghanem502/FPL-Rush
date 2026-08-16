@@ -9,7 +9,10 @@ const {
     linkFplId,
     verifyUserLeague,
     getCurrentUser,
-    googleAuth
+    googleAuth,
+    updateProfile,
+    uploadAvatar,
+    getUserFplHistory
 } = require('../controllers/auth.controller');
 
 const authMiddleware = require('../middlewares/auth.middleware');
@@ -45,4 +48,13 @@ router.post('/verify-league', authMiddleware, verifyUserLeague);
 // Get current authenticated user
 router.get('/me', authMiddleware, getCurrentUser);
 
-module.exports = router;
+// Update user profile info
+router.put('/profile', authMiddleware, updateProfile);
+
+// Upload profile avatar to Cloudinary
+router.post('/upload-avatar', authMiddleware, uploadAvatar);
+
+// Get user FPL gameweek history & chips
+router.get('/fpl-history', authMiddleware, getUserFplHistory);
+
+module.exports = router;

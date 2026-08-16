@@ -5,6 +5,14 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/user.model');
 const fplService = require('../services/fpl.service');
 
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'ebg9xzbc',
+    api_key: process.env.CLOUDINARY_API_KEY || '536734466333544',
+    api_secret: process.env.CLOUDINARY_API_SECRET || 'Rwvr4y6e689Swqtt7qE3jf_5WDo'
+});
+
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const { sendPasswordResetEmail } = require('../services/mail.service');
 
@@ -68,6 +76,28 @@ exports.register = async (req, res) => {
 };
 
 
+// Helper to auto-sync FPL profile data & country from FPL API to MongoDB
+const syncUserFplData = async (user) => {
+    if (!user || !user.fpl_id) return user;
+    try {
+        const freshFpl = await fplService.validateTeamId(user.fpl_id);
+        if (freshFpl) {
+            if (freshFpl.teamName) user.teamName = freshFpl.teamName;
+            if (freshFpl.managerName) user.managerName = freshFpl.managerName;
+            if (freshFpl.country) user.country = freshFpl.country;
+            if (freshFpl.countryCode) user.countryCode = freshFpl.countryCode;
+            if (freshFpl.totalPoints !== undefined) user.totalPoints = freshFpl.totalPoints;
+            if (freshFpl.overallRank !== undefined) user.overallRank = freshFpl.overallRank;
+            if (freshFpl.lastGwPoints !== undefined) user.lastGwPoints = freshFpl.lastGwPoints;
+            await user.save();
+        }
+    } catch (err) {
+        console.error('[syncUserFplData] error:', err.message);
+    }
+    return user;
+};
+
+
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 // POST /auth/login
 // Body: { email, password }
@@ -89,21 +119,17 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'بيانات الدخول غير صحيحة' });
         }
 
+        // Auto-sync country & FPL data from FPL API on login
+        if (user.fpl_id) {
+            await syncUserFplData(user);
+        }
+
         const token = generateToken(user._id);
 
         return res.status(200).json({
             message: 'تم تسجيل الدخول بنجاح ✅',
             token,
-            user: {
-                id: user._id,
-                email: user.email,
-                accountStatus: user.accountStatus,
-                fpl_id: user.fpl_id,
-                teamName: user.teamName,
-                managerName: user.managerName,
-                isVerified: user.isVerified,
-                role: user.role
-            }
+            user
         });
 
     } catch (error) {
@@ -162,23 +188,16 @@ exports.googleAuth = async (req, res) => {
             }
         }
 
+        if (user.fpl_id) {
+            await syncUserFplData(user);
+        }
+
         const token = generateToken(user._id);
 
         return res.status(200).json({
             message: 'تم تسجيل الدخول بواسطة Google بنجاح ✅',
             token,
-            user: {
-                id: user._id,
-                email: user.email,
-                accountStatus: user.accountStatus,
-                fpl_id: user.fpl_id,
-                teamName: user.teamName,
-                managerName: user.managerName,
-                totalPoints: user.totalPoints,
-                overallRank: user.overallRank,
-                isVerified: user.isVerified,
-                role: user.role
-            }
+            user
         });
 
     } catch (error) {
@@ -348,27 +367,24 @@ exports.linkFplId = async (req, res) => {
         user.fpl_id = fplIdNum;
         user.fpl_linked_at = new Date();
         user.accountStatus = 'fpl_linked';
-        // DO NOT save teamName/managerName or stats until full league verification!
-        user.isVerified = false;
-        user.teamName = undefined;
-        user.managerName = undefined;
-        user.startedEvent = undefined;
-        user.currentEvent = undefined;
-        user.totalPoints = 0;
-        user.overallRank = 0;
-        user.lastGwPoints = 0;
+
+        if (fplData) {
+            user.teamName = fplData.teamName;
+            user.managerName = fplData.managerName;
+            user.country = fplData.country;
+            user.countryCode = fplData.countryCode;
+            user.startedEvent = fplData.startedEvent;
+            user.currentEvent = fplData.currentEvent;
+            user.totalPoints = fplData.totalPoints || 0;
+            user.overallRank = fplData.overallRank || 0;
+            user.lastGwPoints = fplData.lastGwPoints || 0;
+        }
 
         await user.save();
 
         return res.status(200).json({
-            message: 'تم حفظ الـ FPL ID بنجاح ✅ يمكنك الآن التوثيق بالدوري',
-            user: {
-                id: user._id,
-                email: user.email,
-                accountStatus: user.accountStatus,
-                fpl_id: user.fpl_id,
-                isVerified: false
-            }
+            message: 'تم حفظ الـ FPL ID وجلب بيانات المدرب والفريق والدولة بنجاح ✅',
+            user
         });
 
     } catch (error) {
@@ -410,6 +426,8 @@ exports.verifyUserLeague = async (req, res) => {
             if (fplData) {
                 if (fplData.teamName)    user.teamName    = fplData.teamName;
                 if (fplData.managerName) user.managerName = fplData.managerName;
+                if (fplData.country)     user.country     = fplData.country;
+                if (fplData.countryCode) user.countryCode = fplData.countryCode;
                 if (fplData.startedEvent  !== undefined) user.startedEvent  = fplData.startedEvent;
                 if (fplData.currentEvent  !== undefined) user.currentEvent  = fplData.currentEvent;
                 if (fplData.totalPoints   !== undefined) user.totalPoints   = fplData.totalPoints;
@@ -422,20 +440,7 @@ exports.verifyUserLeague = async (req, res) => {
             return res.json({
                 success: true,
                 message: 'تم التحقق بنجاح! أهلاً بك في ملعب FPL RUSH 🚀',
-                user: {
-                    id: user._id,
-                    email: user.email,
-                    accountStatus: user.accountStatus,
-                    fpl_id: user.fpl_id,
-                    teamName: user.teamName,
-                    managerName: user.managerName,
-                    totalPoints: user.totalPoints,
-                    overallRank: user.overallRank,
-                    lastGwPoints: user.lastGwPoints,
-                    currentEvent: user.currentEvent,
-                    startedEvent: user.startedEvent,
-                    isVerified: true
-                }
+                user
             });
         } else {
             return res.status(400).json({
@@ -456,10 +461,14 @@ exports.verifyUserLeague = async (req, res) => {
 // Requires: Auth token
 exports.getCurrentUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        let user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+
+        if (user.fpl_id) {
+            await syncUserFplData(user);
         }
 
         res.status(200).json({ success: true, user });
@@ -469,3 +478,112 @@ exports.getCurrentUser = async (req, res) => {
         res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم', error: error.message });
     }
 };
+
+
+// ── UPDATE PROFILE ───────────────────────────────────────────────────────────
+// PUT /auth/profile
+// Requires: Auth token
+// Body: { phone } (Email is non-editable & tied to FPL ID)
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { phone } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+
+        if (phone !== undefined) user.phone = phone;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'تم تحديث رقم الهاتف بنجاح ✅',
+            user
+        });
+    } catch (error) {
+        console.error('[updateProfile]', error);
+        res.status(500).json({ message: 'خطأ أثناء تحديث بيانات الملف الشخصي', error: error.message });
+    }
+};
+
+
+// ── UPLOAD AVATAR ────────────────────────────────────────────────────────────
+// POST /auth/upload-avatar
+// Requires: Auth token
+// Body: { image } (base64 string or image URL)
+exports.uploadAvatar = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { image } = req.body;
+
+        if (!image) {
+            return res.status(400).json({ message: 'يرجى اختيار صورة للرفع' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+
+        // Delete old image from Cloudinary if exists
+        if (user.avatarPublicId) {
+            try {
+                await cloudinary.uploader.destroy(user.avatarPublicId);
+            } catch (destroyErr) {
+                console.warn('Could not destroy old avatar:', destroyErr.message);
+            }
+        }
+
+        // Upload to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(image, {
+            folder: 'fpl_rush_avatars',
+            transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }]
+        });
+
+        user.avatar = uploadResponse.secure_url;
+        user.avatarPublicId = uploadResponse.public_id;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'تم رفع صورة البروفايل بنجاح 📸',
+            avatar: user.avatar,
+            user
+        });
+    } catch (error) {
+        console.error('[uploadAvatar]', error);
+        res.status(500).json({ message: 'فشل رفع الصورة إلى السحابة', error: error.message });
+    }
+};
+
+
+// ── GET USER FPL HISTORY ─────────────────────────────────────────────────────
+// GET /auth/fpl-history
+// Requires: Auth token
+exports.getUserFplHistory = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const user = await User.findById(userId);
+
+        if (!user || !user.fpl_id) {
+            return res.status(200).json({
+                success: true,
+                history: { current: [], chips: [], past: [] }
+            });
+        }
+
+        const history = await fplService.getUserFplHistory(user.fpl_id);
+
+        return res.status(200).json({
+            success: true,
+            history
+        });
+    } catch (error) {
+        console.error('[getUserFplHistory]', error);
+        res.status(500).json({ message: 'خطأ في جلب سجل الفانتزي', error: error.message });
+    }
+};

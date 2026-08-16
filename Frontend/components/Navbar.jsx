@@ -58,12 +58,25 @@ const Navbar = () => {
             ))}
 
             {user || isAdmin ? (
-              <button
-                onClick={handleLogout}
-                className="bg-red-500/10 text-red-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500 hover:text-white transition-all"
-              >
-                خروج
-              </button>
+              <div className="flex items-center gap-3">
+                {user && (
+                  <Link to="/profile" className="flex items-center gap-2 group">
+                    <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-[#22c55e]/50 group-hover:border-[#22c55e] transition-all bg-slate-800 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{user.managerName ? user.managerName.charAt(0).toUpperCase() : '👤'}</span>
+                      )}
+                    </div>
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500/10 text-red-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500 hover:text-white transition-all"
+                >
+                  خروج
+                </button>
+              </div>
             ) : (
               <Link
                 to="/login"
