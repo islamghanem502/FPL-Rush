@@ -15,10 +15,6 @@ import ChallengePage from './pages/ChallengePage';
 import VerifyLeaguePage from './pages/VerifyLeaguePage';
 import ProfilePage from './pages/ProfilePage';
 
-// PvP Pages
-import PvPPredictionsPage from './pages/PvPPredictionsPage';
-import PvPRulesPage from './pages/PvPRulesPage';
-
 // Bonus Tracker
 import BonusPage from './pages/BonusPage';
 
@@ -76,26 +72,6 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ChallengePage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* PvP Predictions Route */}
-            <Route
-              path="/challenge/:id/my-prediction"
-              element={
-                <ProtectedRoute>
-                  <PvPPredictionsPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* PvP Rules Route */}
-            <Route
-              path="/pvp-rules"
-              element={
-                <ProtectedRoute>
-                  <PvPRulesPage />
                 </ProtectedRoute>
               }
             />

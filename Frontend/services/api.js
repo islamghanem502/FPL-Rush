@@ -147,25 +147,13 @@ export const authAPI = {
 };
 
 
-// ── Challenge API (unchanged) ─────────────────────────────────────────────────
+// ── Challenge API ─────────────────────────────────────────────────────────────
 export const challengeAPI = {
   getChallenges: () => api.get('/challenges'),
   getChallengeDetails: (id) => api.get(`/challenges/${id}`),
   getStandings: (id) => api.get(`/challenges/${id}/standings`),
   enroll: (id, payload = {}) => api.post(`/challenges/${id}/enroll`, payload),
   closeChallenge: (id) => api.patch(`/challenges/${id}/close`),
-};
-
-// ── PvP API (unchanged) ───────────────────────────────────────────────────────
-export const pvpAPI = {
-  getChallenges: () => api.get('/pvp'),
-  getChallengeById: (id) => api.get(`/pvp/${id}`),
-  submitPrediction: (id, predictions) => api.post(`/pvp/${id}/predict`, { predictions }),
-  getStandings: (id) => api.get(`/pvp/${id}/standings`),
-  createChallenge: (data) => api.post('/pvp/create', data),
-  syncResults: (id) => api.patch(`/pvp/${id}/sync`),
-  closeChallenge: (id) => api.patch(`/pvp/${id}/close`),
-  deleteChallenge: (id) => api.delete(`/pvp/${id}`),
 };
 
 export default api;

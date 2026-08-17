@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { useUser, useChallenges, usePvPChallenges } from '../hooks/useAuthQuery';
+import { useUser, useChallenges } from '../hooks/useAuthQuery';
 
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState('available');
@@ -11,13 +11,11 @@ const DashboardPage = () => {
 
   const { data: user, isLoading: userLoading, isError: userError, error: userApiError } = useUser();
   const { data: challengesRaw, isLoading: challengesLoading } = useChallenges();
-  const { data: pvpRaw, isLoading: pvpLoading } = usePvPChallenges();
 
-  // مدمج ومرتب
+  // مرتب حسب الترتيب المحدد
   const challenges = React.useMemo(() => {
-    const combined = [...(challengesRaw || []), ...(pvpRaw || [])];
-    return combined.sort((a, b) => (a.position || 0) - (b.position || 0));
-  }, [challengesRaw, pvpRaw]);
+    return [...(challengesRaw || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
+  }, [challengesRaw]);
 
   // تصفية التحديات بناءً على البحث
   const filteredChallenges = challenges.filter(challenge =>
@@ -65,7 +63,7 @@ const DashboardPage = () => {
       <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
 
         {/* =========================================
-            Header Section (تم تصميمه بشكل احترافي وسيمبل)
+            Header Section
         ========================================= */}
         <header className="mb-6 md:mb-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8 text-right">
 
@@ -77,7 +75,7 @@ const DashboardPage = () => {
             <p className="text-gray-400 text-sm md:text-base font-medium">مستعد لتحديات الجولة الجديدة؟</p>
           </div>
 
-          {/* الإحصائيات (تصميم زجاجي أنيق) */}
+          {/* الإحصائيات */}
           <div className="flex gap-4 w-full lg:w-auto">
             <div className="flex-1 lg:flex-none bg-slate-900/40 backdrop-blur-md border border-slate-700/50 p-5 md:px-8 md:py-6 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden group shadow-lg">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-500 to-transparent opacity-50"></div>
@@ -94,7 +92,7 @@ const DashboardPage = () => {
         </header>
 
         {/* =========================================
-            Team Info Card (تصميم لوحة تحكم مدمجة)
+            Team Info Card
         ========================================= */}
         <div className="bg-slate-900/30 backdrop-blur-sm border border-slate-800 rounded-2xl md:rounded-3xl p-6 md:p-8 mb-8 md:mb-12 text-right shadow-sm">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-0">
@@ -130,7 +128,7 @@ const DashboardPage = () => {
         </div>
 
         {/* =========================================
-            Live Bonus Tracker Button (Stlye matching Landing Page)
+            Live Bonus Tracker Button
         ========================================= */}
         <div className="flex justify-center md:justify-end mb-10 -mt-2">
           <Link
@@ -147,7 +145,7 @@ const DashboardPage = () => {
         </div>
 
         {/* =========================================
-            Missing Contact Banner (Small & Yellow)
+            Missing Contact Banner
         ========================================= */}
         {(!user?.email && !user?.phone) && (
           <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-3 md:p-4 mb-8 md:mb-12 flex flex-col sm:flex-row items-center justify-between text-right gap-3 shadow-md">
@@ -194,7 +192,7 @@ const DashboardPage = () => {
         {/* Challenges Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
           {activeTab === 'available' ? (
-            challengesLoading || pvpLoading ? (
+            challengesLoading ? (
               <div className="col-span-full py-20 text-center">
                 <div className="w-12 h-12 border-4 border-slate-700 border-t-[#22c55e] rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-500 font-bold">جاري تحميل التحديات الجديدة...</p>
@@ -212,30 +210,27 @@ const DashboardPage = () => {
             user?.joinedChallenges && user.joinedChallenges.length > 0 ? (
               user.joinedChallenges.map((item) => {
                 const challengeInfo = challenges?.find(c => c._id === item.challengeId);
-                const isPvP = !!challengeInfo?.matchups;
                 return (
-                  <div key={item._id} className={`bg-slate-900/60 rounded-[24px] md:rounded-[32px] p-6 md:p-8 border ${isPvP ? 'border-purple-500/50 hover:border-purple-500' : 'border-[#22c55e]/50 hover:border-[#22c55e]'} relative overflow-hidden group transition-all text-right shadow-lg`}>
-                    <div className={`absolute top-0 right-0 ${isPvP ? 'bg-purple-500' : 'bg-[#22c55e]'} text-black text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-tighter italic`}>Joined</div>
+                  <div key={item._id} className="bg-slate-900/60 rounded-[24px] md:rounded-[32px] p-6 md:p-8 border border-[#22c55e]/50 hover:border-[#22c55e] relative overflow-hidden group transition-all text-right shadow-lg">
+                    <div className="absolute top-0 right-0 bg-[#22c55e] text-black text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-tighter italic">Joined</div>
 
                     <h3 className="text-lg md:text-xl font-black text-white mb-6">
                       {challengeInfo?.title || "تحدي مشارك به"}
                     </h3>
 
                     <div className="space-y-4">
-                      {!isPvP && (
-                        <div className="flex justify-between border-b border-slate-700/50 pb-3">
-                          <span className="text-gray-400 text-xs font-medium">نقاطك عند الانضمام</span>
-                          <span className="text-white font-bold">{item.initialPoints}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between border-b border-slate-700/50 pb-3">
+                        <span className="text-gray-400 text-xs font-medium">نقاطك عند الانضمام</span>
+                        <span className="text-white font-bold">{item.initialPoints}</span>
+                      </div>
                       <div className="flex justify-between items-center pt-2">
                         <span className="text-gray-400 text-sm font-medium">نقاطك في التحدي</span>
-                        <span className={`text-3xl md:text-4xl font-black ${isPvP ? 'text-purple-400' : 'text-[#22c55e]'}`}>
-                          {isPvP ? "PvP" : (user.totalPoints - item.initialPoints).toLocaleString()}
+                        <span className="text-3xl md:text-4xl font-black text-[#22c55e]">
+                          {(user.totalPoints - item.initialPoints).toLocaleString()}
                         </span>
                       </div>
                     </div>
-                    <Link to={`/challenge/${item.challengeId}`} className={`block mt-8 text-center text-xs font-bold text-gray-500 ${isPvP ? 'hover:text-purple-400' : 'hover:text-[#22c55e]'} transition-colors underline decoration-dotted underline-offset-4`}>
+                    <Link to={`/challenge/${item.challengeId}`} className="block mt-8 text-center text-xs font-bold text-gray-500 hover:text-[#22c55e] transition-colors underline decoration-dotted underline-offset-4">
                       فتح جدول الترتيب والمركز الحالي
                     </Link>
                   </div>
@@ -278,25 +273,12 @@ const DashboardPage = () => {
 
 // Component فرعي لكرت التحدي
 const ChallengeCard = ({ challenge }) => {
-  const isPvP = !!challenge.matchups;
-  const themeText = isPvP ? "text-purple-400" : "text-[#22c55e]";
-  const themeHoverBorder = isPvP ? "hover:border-purple-500/50" : "hover:border-[#22c55e]/50";
-  const themeGroupText = isPvP ? "group-hover:text-purple-400" : "group-hover:text-[#22c55e]";
-  const themeHoverBg = isPvP ? "hover:bg-purple-500" : "hover:bg-[#22c55e]";
-
   return (
     <>
-      {/* =======================================================
-          1. تصميم الموبايل (Image Overlay + قائمة الجوائز)
-      ======================================================= */}
-      <div className={`md:hidden relative h-[24rem] w-full rounded-[28px] overflow-hidden border border-slate-800 ${themeHoverBorder} transition-all duration-500 flex flex-col group shadow-xl text-right`}>
+      {/* 1. تصميم الموبايل */}
+      <div className="md:hidden relative h-[24rem] w-full rounded-[28px] overflow-hidden border border-slate-800 hover:border-[#22c55e]/50 transition-all duration-500 flex flex-col group shadow-xl text-right">
 
-        {isPvP && challenge.status !== "finished" && (
-          <div className="absolute top-0 right-0 bg-purple-500 text-white font-black px-8 py-1.5 rotate-45 translate-x-8 translate-y-4 shadow-xl z-20 italic text-[10px]">
-            ⚔️ PvP
-          </div>
-        )}
-        {!isPvP && challenge.status !== "finished" && (
+        {challenge.status !== "finished" && (
           <div className="absolute top-0 right-0 bg-[#22c55e] text-slate-900 font-black px-8 py-1.5 rotate-45 translate-x-8 translate-y-4 shadow-xl z-20 italic text-[10px]">
             ✨ كلاسيك
           </div>
@@ -315,7 +297,7 @@ const ChallengeCard = ({ challenge }) => {
               className="w-full h-full object-cover opacity-100 group-hover:scale-110 group-hover:opacity-100 transition-all duration-1000"
             />
           ) : (
-            <span className="text-6xl opacity-50">{isPvP ? "⚔️" : "🏆"}</span>
+            <span className="text-6xl opacity-50">🏆</span>
           )}
         </div>
 
@@ -328,17 +310,7 @@ const ChallengeCard = ({ challenge }) => {
                 {challenge.title}
               </h3>
               <div className="flex items-center gap-2 text-[11px]">
-                {isPvP ? (
-                  <span className="text-gray-300 font-bold italic">GW {challenge.gw}</span>
-                ) : (
-                  <span className="text-gray-300 font-bold italic">GW {challenge.startEvent} - {challenge.endEvent}</span>
-                )}
-                {isPvP && (
-                  <>
-                    <span className="text-gray-600">•</span>
-                    <span className={`${themeText} font-bold`}>{challenge.matchups?.length || 0} مواجهات</span>
-                  </>
-                )}
+                <span className="text-gray-300 font-bold italic">GW {challenge.startEvent} - {challenge.endEvent}</span>
               </div>
             </div>
 
@@ -346,7 +318,7 @@ const ChallengeCard = ({ challenge }) => {
             <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-2.5 rounded-xl flex flex-col gap-1.5 min-w-[110px]">
               <div className="flex justify-between items-center gap-3">
                 <span className="text-gray-400 text-[9px] font-bold">المركز الأول</span>
-                <span className={`${themeText} font-black text-sm`}>{challenge.prize}</span>
+                <span className="text-[#22c55e] font-black text-sm">{challenge.prize}</span>
               </div>
               {challenge.prizeSecond && (
                 <div className="flex justify-between items-center gap-3 border-t border-slate-700/50 pt-1.5">
@@ -361,7 +333,7 @@ const ChallengeCard = ({ challenge }) => {
             to={`/challenge/${challenge._id}`}
             className={`w-full text-center py-3.5 rounded-xl font-black text-sm transition-all border border-slate-700/50 shadow-lg ${challenge.status === "finished"
               ? "bg-slate-800/80 text-gray-400 cursor-not-allowed"
-              : `bg-slate-900/80 text-white ${themeHoverBg} hover:text-slate-950 hover:border-transparent active:scale-95`
+              : "bg-slate-900/80 text-white hover:bg-[#22c55e] hover:text-slate-950 hover:border-transparent active:scale-95"
               }`}
           >
             {challenge.status === "finished" ? "التحدي مغلق" : "دخول التحدي"}
@@ -369,17 +341,10 @@ const ChallengeCard = ({ challenge }) => {
         </div>
       </div>
 
-      {/* =======================================================
-          2. تصميم اللابتوب (التصميم الأصلي مع تظبيط الجوائز)
-      ======================================================= */}
-      <div className={`hidden md:flex bg-slate-900/40 backdrop-blur-sm rounded-[32px] overflow-hidden border border-slate-800 ${themeHoverBorder} transition-all duration-500 flex-col group hover:shadow-[0_0_40px_rgba(${isPvP ? '168,85,247' : '34,197,94'},0.05)] text-right relative`}>
+      {/* 2. تصميم اللابتوب */}
+      <div className="hidden md:flex bg-slate-900/40 backdrop-blur-sm rounded-[32px] overflow-hidden border border-slate-800 hover:border-[#22c55e]/50 transition-all duration-500 flex-col group hover:shadow-[0_0_40px_rgba(34,197,94,0.05)] text-right relative">
 
-        {isPvP && challenge.status !== "finished" && (
-          <div className="absolute top-0 right-0 bg-purple-500 text-white font-black px-10 py-2 rotate-45 translate-x-10 translate-y-6 shadow-xl z-20 italic text-sm">
-            ⚔️ PvP
-          </div>
-        )}
-        {!isPvP && challenge.status !== "finished" && (
+        {challenge.status !== "finished" && (
           <div className="absolute top-0 right-0 bg-[#22c55e] text-slate-900 font-black px-10 py-2 rotate-45 translate-x-10 translate-y-6 shadow-xl z-20 italic text-sm">
             ✨ كلاسيك
           </div>
@@ -399,7 +364,7 @@ const ChallengeCard = ({ challenge }) => {
               className="w-full h-full object-cover opacity-90 group-hover:scale-110 group-hover:opacity-100 transition-all duration-1000"
             />
           ) : (
-            <span className="text-6xl opacity-50">{isPvP ? "⚔️" : "🏆"}</span>
+            <span className="text-6xl opacity-50">🏆</span>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
         </div>
@@ -410,7 +375,7 @@ const ChallengeCard = ({ challenge }) => {
           <div className="bg-slate-900/90 backdrop-blur-md w-fit p-4 rounded-2xl mb-5 border border-slate-700/50 self-end flex flex-col gap-2 min-w-[150px] shadow-lg">
             <div className="flex justify-between items-center gap-4">
               <span className="text-gray-400 text-[10px] font-bold uppercase">المركز الأول</span>
-              <span className={`${themeText} font-black text-lg`}>{challenge.prize}</span>
+              <span className="text-[#22c55e] font-black text-lg">{challenge.prize}</span>
             </div>
             {challenge.prizeSecond && (
               <div className="flex justify-between items-center gap-4 border-t border-slate-800 pt-2">
@@ -426,32 +391,22 @@ const ChallengeCard = ({ challenge }) => {
             )}
           </div>
 
-          <h3 className={`text-2xl font-black mb-2 leading-tight ${themeGroupText} transition-colors text-white`}>
+          <h3 className="text-2xl font-black mb-2 leading-tight group-hover:text-[#22c55e] transition-colors text-white">
             {challenge.title}
           </h3>
 
           <div className="space-y-4 my-6 flex-grow">
             <div className="flex justify-between items-center text-sm border-b border-slate-800/50 pb-3">
-              {isPvP ? (
-                <span className="text-white font-bold italic">GW {challenge.gw}</span>
-              ) : (
-                <span className="text-white font-bold italic">GW {challenge.startEvent} — {challenge.endEvent}</span>
-              )}
+              <span className="text-white font-bold italic">GW {challenge.startEvent} — {challenge.endEvent}</span>
               <span className="text-gray-500 font-bold uppercase text-[10px]">الجولات</span>
             </div>
-            {isPvP && (
-              <div className="flex justify-between items-center text-sm">
-                <span className={`${themeText} font-bold italic`}>{challenge.matchups?.length || 0} مواجهات</span>
-                <span className="text-gray-500 font-bold uppercase text-[10px]">المعارك</span>
-              </div>
-            )}
           </div>
 
           <Link
             to={`/challenge/${challenge._id}`}
             className={`w-full text-center py-4 rounded-xl font-black transition-all border border-slate-700/50 shadow-md ${challenge.status === "finished"
               ? "bg-slate-800/50 text-gray-500 cursor-not-allowed"
-              : `bg-slate-900 text-white ${themeHoverBg} hover:text-slate-950 hover:scale-[1.02] active:scale-95`
+              : "bg-slate-900 text-white hover:bg-[#22c55e] hover:text-slate-950 hover:scale-[1.02] active:scale-95"
               }`}
           >
             {challenge.status === "finished" ? "التحدي مغلق" : "دخول التحدي"}
