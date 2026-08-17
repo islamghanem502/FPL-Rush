@@ -5,7 +5,7 @@
  *  1. Linked their FPL ID (accountStatus === 'fpl_linked')
  *  2. Been verified as a member of the FPL Rush private league (isVerified === true)
  *
- * Use this middleware on routes that require full access (challenges, PvP, etc.)
+ * Use this middleware on routes that require full access (challenges, etc.)
  * Must be used AFTER authMiddleware.
  */
 module.exports = (req, res, next) => {

@@ -3,7 +3,6 @@ const connectDB = require('./config/database');
 const cron = require('node-cron');
 const User = require('./models/user.model');
 const { syncMultipleUsers } = require('./services/fpl.service');
-const { syncPvPChallenges } = require('./services/fpl.service');
 
 // Connect to MongoDB
 connectDB();
@@ -23,10 +22,6 @@ cron.schedule('*/15 * * * *', async () => {
     } else {
       console.log('ℹ️ No users found for sync.');
     }
-
-
-    await syncPvPChallenges();
-    console.log('✅ PvP Challenges outcomes and predictions updated.');
 
   } catch (error) {
     console.error('❌ Sync failed:', error.message);

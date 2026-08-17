@@ -98,9 +98,6 @@ exports.reorderChallenges = async (req, res) => {
         }));
 
         await Challenge.bulkWrite(bulkOps, { ordered: false });
-        
-        const PvPChallenge = require('../models/pvpChallenge.model');
-        await PvPChallenge.bulkWrite(bulkOps, { ordered: false }).catch(() => {}); // Ignore errors if some IDs are not in PvPChallenge
 
         res.status(200).json({ message: "Reordered successfully" });
     } catch (error) {
