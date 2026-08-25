@@ -18,12 +18,11 @@ const classicInitial = {
   prizeThird: "",
   image: "",
   backgroundImage: "",
-  joinCode: "",
   startEvent: 30,
   endEvent: 35,
   minTotalPoints: 0,
   maxOverallRank: 10000000,
-  minStartedEvent: 1,
+  latestStartedEvent: 38,
 };
 
 const AdminDashboard = () => {
@@ -132,7 +131,6 @@ const AdminDashboard = () => {
                   { label: "الجائزة الأولى (مطلوب)", field: "prize", placeholder: "مثلاً: 1000 جنيه كاش", required: true },
                   { label: "الجائزة الثانية (اختياري)", field: "prizeSecond", placeholder: "مثلاً: 500 جنيه" },
                   { label: "الجائزة الثالثة (اختياري)", field: "prizeThird", placeholder: "مثلاً: 250 جنيه" },
-                  { label: "كود الانضمام (اختياري)", field: "joinCode", placeholder: "اتركه فارغاً لعدم طلب كود" },
                 ].map(({ label, field, placeholder, required }) => (
                   <div key={field}>
                     <label className="block text-xs font-black text-gray-500 mb-2 mr-1">{label}</label>
@@ -190,9 +188,9 @@ const AdminDashboard = () => {
                   <h3 className="text-[10px] font-black text-[#22c55e] uppercase tracking-[0.2em] mb-4">شروط الدخول (اختياري)</h3>
                   <div>
                     <label className="block text-[10px] font-black text-gray-500 mb-2 mr-1 italic">أقصى جولة لبداية الحساب</label>
-                    <input type="number" placeholder="مثلاً: 1" value={classicForm.minStartedEvent}
+                    <input type="number" placeholder="مثلاً: 38" value={classicForm.latestStartedEvent}
                       className="w-full bg-slate-900/50 p-4 rounded-2xl border border-slate-800 text-xs text-white"
-                      onChange={(e) => setClassicForm({ ...classicForm, minStartedEvent: parseInt(e.target.value) })} />
+                      onChange={(e) => setClassicForm({ ...classicForm, latestStartedEvent: parseInt(e.target.value) })} />
                   </div>
                   <input type="number" placeholder="أقل نقاط إجمالية مطلوبة" value={classicForm.minTotalPoints === 0 ? '' : classicForm.minTotalPoints}
                     className="w-full bg-slate-900/50 p-4 rounded-2xl border border-slate-800 text-xs text-white"

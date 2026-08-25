@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authAPI } from '../services/api';
+import { authAPI, challengeAPI } from '../services/api';
 import api from '../services/api';
 
 export const useUser = () => {
@@ -9,7 +9,6 @@ export const useUser = () => {
     queryKey: ['authUser', token],
     queryFn: async () => {
       if (!token) return null;
-
       const response = await authAPI.getCurrentUser();
       return response.data.user;
     },
@@ -19,88 +18,132 @@ export const useUser = () => {
   });
 };
 
-// challenges
-export const useChallenges = () => {
-  return useQuery({
-    queryKey: ['challenges'],
-    queryFn: async () => {
-      const response = await api.get('/challenges');
-      return response.data;
-    }
+export const usePublicChallenges = () => useQuery({
+  queryKey: ['publicChallenges'],
+  queryFn: async () => (await challengeAPI.getPublicChallenges()).data
+});
+
+// Old components can keep this hook while they are being migrated.
+export const useChallenges = usePublicChallenges;
+
+export const useMyChallenges = () => useQuery({
+  queryKey: ['myChallenges'],
+  queryFn: async () => (await challengeAPI.getMyChallenges()).data
+});
+
+export const useChallengeDetails = (id) => useQuery({
+  queryKey: ['challenge', id],
+  queryFn: async () => (await challengeAPI.getChallengeDetails(id)).data,
+  enabled: Boolean(id)
+});
+
+const invalidateChallengeQueries = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: ['publicChallenges'] });
+  queryClient.invalidateQueries({ queryKey: ['myChallenges'] });
+  queryClient.invalidateQueries({ queryKey: ['challenge'] });
+  queryClient.invalidateQueries({ queryKey: ['standings'] });
+};
+
+export const useCreatePrivateChallenge = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => challengeAPI.createPrivate(payload),
+    onSuccess: () => invalidateChallengeQueries(queryClient)
   });
 };
 
-export const useCreateChallenge = () => {
+export const useCreatePublicChallenge = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (newChallenge) => api.post('/challenges/create', newChallenge),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['challenges'] });
-    }
+    mutationFn: (payload) => challengeAPI.createPublic(payload),
+    onSuccess: () => invalidateChallengeQueries(queryClient)
+  });
+};
+
+// Existing admin page name retained as a public-create alias.
+export const useCreateChallenge = useCreatePublicChallenge;
+
+export const useUpdateChallenge = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }) => challengeAPI.update(id, payload),
+    onSuccess: () => invalidateChallengeQueries(queryClient)
   });
 };
 
 export const useDeleteChallenge = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id) => api.delete(`/challenges/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['challenges'] });
-      alert("تم حذف التحدي بنجاح");
-    }
+    mutationFn: (id) => challengeAPI.remove(id),
+    onSuccess: () => invalidateChallengeQueries(queryClient)
   });
 };
 
 export const useEnrollChallenge = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (vars) => {
-      const id = typeof vars === 'object' && vars && 'id' in vars ? vars.id : vars;
-      const joinCode = typeof vars === 'object' && vars && 'joinCode' in vars ? vars.joinCode : undefined;
-      return api.post(`/challenges/${id}/enroll`, joinCode != null ? { joinCode } : {});
-    },
+    mutationFn: (id) => challengeAPI.enroll(typeof id === 'object' ? id.id : id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myChallenges'] });
       queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['standings'] });
     }
   });
 };
 
-export const useChallengeStandings = (id) => {
-  return useQuery({
-    queryKey: ['standings', id],
-    queryFn: async () => {
-      const { data } = await api.get(`/challenges/${id}/standings`);
-      return data;
-    },
-    enabled: !!id
+export const usePrivateInvite = (inviteCode) => useQuery({
+  queryKey: ['privateInvite', inviteCode],
+  queryFn: async () => (await challengeAPI.previewPrivateInvite(inviteCode)).data,
+  enabled: Boolean(inviteCode),
+  retry: false
+});
+
+export const useEnrollWithPrivateInvite = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteCode) => challengeAPI.enrollWithPrivateInvite(inviteCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myChallenges'] });
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
+    }
   });
 };
+
+export const usePrivateInviteLink = (id, enabled = true) => useQuery({
+  queryKey: ['privateInviteLink', id],
+  queryFn: async () => (await challengeAPI.getPrivateInvite(id)).data,
+  enabled: Boolean(id) && enabled,
+  retry: false
+});
+
+export const useRotatePrivateInvite = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => challengeAPI.rotatePrivateInvite(id),
+    onSuccess: (_, id) => queryClient.invalidateQueries({ queryKey: ['privateInviteLink', id] })
+  });
+};
+
+export const useChallengeStandings = (id) => useQuery({
+  queryKey: ['standings', id],
+  queryFn: async () => (await challengeAPI.getStandings(id)).data,
+  enabled: Boolean(id)
+});
 
 export const useCloseChallenge = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (challengeId) => {
-      const { data } = await api.patch(`/challenges/${challengeId}/close`);
-      return data;
-    },
-    onSuccess: () => {
-      // ✅ التعديل هنا
-      queryClient.invalidateQueries({ queryKey: ['challenges'] });
-      alert("تم إنهاء التحدي وتتويج الأبطال بنجاح! 🏆");
-    },
+    mutationFn: (challengeId) => challengeAPI.closeChallenge(challengeId),
+    onSuccess: () => invalidateChallengeQueries(queryClient)
   });
 };
 
-// Admin reorder (drag & drop)
 export const useReorderChallenges = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (orderedIds) => {
-      return api.post('/challenges/reorder', orderedIds);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['challenges'] });
-    }
+    mutationFn: (orderedIds) => api.post('/challenges/reorder', { orderedIds }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['publicChallenges'] })
   });
 };

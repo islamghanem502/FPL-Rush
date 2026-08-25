@@ -14,6 +14,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import ChallengePage from './pages/ChallengePage';
 import VerifyLeaguePage from './pages/VerifyLeaguePage';
 import ProfilePage from './pages/ProfilePage';
+import PrivateChallengesPage from './pages/PrivateChallengesPage';
+import PrivateChallengeFormPage from './pages/PrivateChallengeFormPage';
+import JoinPrivateChallengePage from './pages/JoinPrivateChallengePage';
 
 // Bonus Tracker
 import BonusPage from './pages/BonusPage';
@@ -50,7 +53,7 @@ const App = () => {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireFplLink>
                   <DashboardPage />
                 </ProtectedRoute>
               }
@@ -70,8 +73,44 @@ const App = () => {
             <Route
               path="/challenge/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireFplLink>
                   <ChallengePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/my-challenges"
+              element={
+                <ProtectedRoute requireFplLink>
+                  <PrivateChallengesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/private-challenge/new"
+              element={
+                <ProtectedRoute requireFplLink>
+                  <PrivateChallengeFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/private-challenge/:id/edit"
+              element={
+                <ProtectedRoute requireFplLink>
+                  <PrivateChallengeFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/join/:inviteCode"
+              element={
+                <ProtectedRoute requireFplLink>
+                  <JoinPrivateChallengePage />
                 </ProtectedRoute>
               }
             />

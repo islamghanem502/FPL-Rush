@@ -3,23 +3,33 @@ const router = express.Router();
 const challengeController = require('../controllers/challenge.controller');
 const auth = require('../middlewares/auth.middleware');
 const isAdmin = require('../middlewares/admin.middleware');
-const verify = require("../middlewares/isVerified.middleware");
+const requireFplLinked = require('../middlewares/fplLinked.middleware');
 
+// Every challenge action requires an authenticated FPL-linked account. Platform
+// league membership is now an explicit challenge condition, not a global gate.
+router.use(auth);
 
-router.get('/', auth, verify, challengeController.getChallenges);
-router.post('/create', auth, isAdmin, challengeController.createChallenge);
-router.post('/reorder', auth, isAdmin, challengeController.reorderChallenges);
-router.delete('/:id', auth, isAdmin, challengeController.deleteChallenge);
+router.get('/public', requireFplLinked, challengeController.getPublicChallenges);
+router.get('/mine', requireFplLinked, challengeController.getMyChallenges);
+router.post('/private', requireFplLinked, challengeController.createPrivateChallenge);
+router.post('/public', isAdmin, challengeController.createPublicChallenge);
 
+router.get('/invite/:inviteCode', requireFplLinked, challengeController.previewPrivateInvite);
+router.post('/invite/:inviteCode/enroll', requireFplLinked, challengeController.enrollWithPrivateInvite);
 
+// Backwards-compatible aliases used by the pre-migration client.
+router.get('/', requireFplLinked, challengeController.getPublicChallenges);
+router.post('/create', isAdmin, challengeController.createPublicChallenge);
+router.post('/reorder', isAdmin, challengeController.reorderChallenges);
 
-// Enroll
-router.post('/:challengeId/enroll', auth, verify, challengeController.enrollInChallenge);
+router.get('/:id/invite', requireFplLinked, challengeController.getPrivateInvite);
+router.post('/:id/invite/rotate', requireFplLinked, challengeController.rotatePrivateInvite);
+router.get('/:id', requireFplLinked, challengeController.getChallenge);
+router.patch('/:id', requireFplLinked, challengeController.updateChallenge);
+router.delete('/:id', requireFplLinked, challengeController.deleteChallenge);
 
-// Standings
-router.get('/:challengeId/standings', auth, verify, challengeController.getChallengeStandings);
-
-//close challenge
-router.patch('/:challengeId/close', auth, isAdmin, challengeController.closeChallengeManual);
+router.post('/:challengeId/enroll', requireFplLinked, challengeController.enrollInChallenge);
+router.get('/:challengeId/standings', requireFplLinked, challengeController.getChallengeStandings);
+router.patch('/:challengeId/close', requireFplLinked, challengeController.closeChallengeManual);
 
 module.exports = router;

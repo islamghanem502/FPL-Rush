@@ -1,592 +1,92 @@
-import React, { useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import Layout from "../components/Layout";
+import React, { useMemo } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import Layout from '../components/Layout';
 import {
-  useChallenges,
-  useEnrollChallenge,
+  useChallengeDetails,
   useChallengeStandings,
+  useEnrollChallenge,
   useUser,
-} from "../hooks/useAuthQuery";
+} from '../hooks/useAuthQuery';
 
-// --- Sub-Components ---
-const TextWithLinks = ({ text, className }) => {
-  if (!text) return null;
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const lines = text.split("\n");
-  return (
-    <div className={className}>
-      {lines.map((line, lineIdx) => {
-        const parts = line.split(urlRegex);
-        return (
-          <span key={lineIdx} className="block mb-1 last:mb-0">
-            {parts.map((part, i) =>
-              urlRegex.test(part) ? (
-                <a
-                  key={i}
-                  href={part}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#22c55e] underline underline-offset-2 hover:text-white transition-all duration-200"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {part}
-                </a>
-              ) : (
-                <span key={i}>{part}</span>
-              )
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
-};
-
-const ConditionItem = ({ label, isMet }) => (
-  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5">
-    <div
-      className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0
-      ${isMet
-          ? "bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40"
-          : "bg-red-500/10 text-red-400 border border-red-500/20"
-        }`}
-    >
-      {isMet ? "✓" : "✕"}
-    </div>
-    <span className={`text-[11px] font-bold ${isMet ? "text-gray-300" : "text-gray-500"}`}>
-      {label}
-    </span>
+const condition = (label, value, met) => (
+  <div className={`rounded-xl p-3 border ${met ? 'border-[#22c55e]/30 bg-[#22c55e]/5' : 'border-red-500/20 bg-red-500/5'}`}>
+    <p className="text-[11px] text-gray-400">{label}</p>
+    <p className={`mt-1 text-sm font-black ${met ? 'text-white' : 'text-red-300'}`}>{value}</p>
   </div>
 );
 
-const PlayerRow = ({ player, index, isCurrentUser, isSticky }) => (
-  <tr
-    className={`hover:bg-slate-800/40 transition-colors group ${isCurrentUser ? "bg-[#22c55e]/10" : ""} ${isSticky ? "border-t-2 border-[#22c55e]/20 bg-slate-900/95 backdrop-blur-md sticky bottom-0 z-10" : ""}`}
-  >
-    <td className="p-2.5 sm:p-4">
-      <div
-        className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center font-black text-xs shadow-md transition-transform duration-300 group-hover:scale-110 mx-auto
-        ${index === 0
-            ? "bg-gradient-to-br from-yellow-300 to-yellow-600 text-black"
-            : index === 1
-              ? "bg-gradient-to-br from-slate-200 to-slate-400 text-black"
-              : index === 2
-                ? "bg-gradient-to-br from-orange-300 to-orange-600 text-black"
-                : "bg-slate-800 text-gray-400 border border-slate-700"
-          }`}
-      >
-        {index + 1}
-      </div>
-    </td>
-    <td className="p-2.5 sm:p-4">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-700 bg-slate-800 shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-          {player.avatar ? (
-            <img src={player.avatar} alt={player.managerName} className="w-full h-full object-cover" />
-          ) : (
-            <span>{player.managerName ? player.managerName.charAt(0).toUpperCase() : '👤'}</span>
-          )}
-        </div>
-        <div className="min-w-0">
-          <div className="font-black text-xs sm:text-sm text-white truncate flex items-center gap-1.5 max-w-[120px] sm:max-w-[240px]">
-            <span className="truncate">{player.teamName}</span>
-            {isCurrentUser && (
-              <span className="text-[8px] bg-[#22c55e] text-[#04120A] px-1.5 py-0.5 rounded-full font-black uppercase shrink-0">أنت</span>
-            )}
-          </div>
-          <div className="text-[10px] text-gray-500 font-bold mt-0.5 truncate max-w-[120px] sm:max-w-[240px]">
-            {player.managerName} {player.country ? `• ${player.country}` : ''}
-          </div>
-        </div>
-      </div>
-    </td>
-    <td className="p-2.5 sm:p-4 text-center">
-      <div className={`font-black text-base sm:text-2xl tracking-tighter ${index < 3 ? "text-[#22c55e]" : "text-white"}`}>
-        {player.challengePoints ?? player.points ?? player.totalPoints ?? 0}
-      </div>
-    </td>
-  </tr>
-);
-
-// --- Podium Component ---
-const Podium = ({ winners }) => {
-  if (!winners || winners.length === 0) return null;
-
-  const first = winners[0];
-  const second = winners[1];
-  const third = winners[2];
-
-  return (
-    <div className="flex justify-center items-end gap-2 sm:gap-4 mt-12 mb-4">
-      {/* 2nd Place */}
-      {second && (
-        <div className="flex flex-col items-center relative z-0">
-          <div className="mb-2 flex flex-col items-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-200 rounded-full flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_15px_rgba(203,213,225,0.4)] mb-1 z-10 border-2 border-slate-400 shrink-0">
-              🥈
-            </div>
-            <div className="text-white font-bold text-[10px] sm:text-xs truncate max-w-[80px] sm:max-w-[100px] text-center">
-              {second.teamName}
-            </div>
-            <div className="text-xs sm:text-sm font-black text-[#22c55e]">
-              {second.points ?? second.challengePoints ?? second.totalPoints ?? 0}
-            </div>
-          </div>
-          <div className="w-20 sm:w-24 h-[100px] sm:h-[130px] bg-gradient-to-t from-slate-500/20 to-slate-400/40 border-t border-slate-300 rounded-t-lg shadow-inner flex justify-center items-start pt-2 shrink-0">
-            <span className="text-slate-300 font-black text-2xl">2</span>
-          </div>
-        </div>
-      )}
-
-      {/* 1st Place */}
-      {first && (
-        <div className="flex flex-col items-center z-10 -mx-1 sm:-mx-2">
-          <div className="mb-2 flex flex-col items-center">
-            <div className="relative shrink-0">
-              <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl animate-bounce">
-                👑
-              </div>
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-b from-yellow-300 to-yellow-500 rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-[0_0_25px_rgba(250,204,21,0.6)] mb-1 border-2 border-yellow-200 z-10">
-                🥇
-              </div>
-            </div>
-            <div className="text-white font-black text-xs sm:text-sm truncate max-w-[90px] sm:max-w-[120px] text-center mt-1">
-              {first.teamName}
-            </div>
-            <div className="text-sm sm:text-base font-black text-[#22c55e]">
-              {first.points ?? first.challengePoints ?? first.totalPoints ?? 0}
-            </div>
-          </div>
-          <div className="w-24 sm:w-28 h-[140px] sm:h-[180px] bg-gradient-to-t from-yellow-600/20 to-yellow-400/40 border-t-2 border-yellow-400 rounded-t-lg shadow-[0_0_30px_rgba(250,204,21,0.15)] flex justify-center items-start pt-2 shrink-0">
-            <span className="text-yellow-400 font-black text-4xl drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">1</span>
-          </div>
-        </div>
-      )}
-
-      {/* 3rd Place */}
-      {third && (
-        <div className="flex flex-col items-center relative z-0">
-          <div className="mb-2 flex flex-col items-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_15px_rgba(251,146,60,0.4)] mb-1 z-10 border-2 border-orange-500 shrink-0">
-              🥉
-            </div>
-            <div className="text-white font-bold text-[10px] sm:text-xs truncate max-w-[80px] sm:max-w-[100px] text-center">
-              {third.teamName}
-            </div>
-            <div className="text-xs sm:text-sm font-black text-[#22c55e]">
-              {third.points ?? third.challengePoints ?? third.totalPoints ?? 0}
-            </div>
-          </div>
-          <div className="w-20 sm:w-24 h-[70px] sm:h-[90px] bg-gradient-to-t from-orange-700/20 to-orange-500/40 border-t border-orange-400 rounded-t-lg shadow-inner flex justify-center items-start pt-2 shrink-0">
-            <span className="text-orange-400 font-black text-2xl">3</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// --- Main Component ---
 const ChallengePage = () => {
   const { id } = useParams();
-  const queryClient = useQueryClient();
-
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joinCodeInput, setJoinCodeInput] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const { data: user, isLoading: userLoading } = useUser();
-  const { data: challenges, isLoading: challengesLoading } = useChallenges();
+  const { data: user } = useUser();
+  const { data: challenge, isLoading, error } = useChallengeDetails(id);
+  const { data: standings = [], isLoading: standingsLoading } = useChallengeStandings(id);
   const enrollMutation = useEnrollChallenge();
-  const { data: standings, isLoading: standingsLoading } = useChallengeStandings(id);
 
-  const challenge = challenges?.find((c) => c._id === id);
-  const isJoined = user?.joinedChallenges?.some((c) => c.challengeId === id);
-  const requiresJoinCode = !!(challenge?.joinCode && challenge.joinCode.trim());
+  const checks = useMemo(() => ({
+    points: Number(user?.totalPoints || 0) >= Number(challenge?.minTotalPoints || 0),
+    rank: Number(user?.overallRank || Number.MAX_SAFE_INTEGER) <= Number(challenge?.maxOverallRank || 10000000),
+    started: Number(user?.startedEvent || 999) <= Number(challenge?.latestStartedEvent || 38),
+    league: !challenge?.requiresPlatformLeagueMembership || Boolean(user?.isVerified),
+    notEnded: Number(user?.currentEvent || 0) <= Number(challenge?.endEvent || 0),
+  }), [challenge, user]);
 
-  const { currentItems, totalPages, currentUserEntry, currentUserRankIndex, isUserInCurrentPage } =
-    useMemo(() => {
-      const data = standings || [];
-      const pages = Math.ceil(data.length / itemsPerPage);
-      const start = (currentPage - 1) * itemsPerPage;
-      const sliced = data.slice(start, start + itemsPerPage);
-      const userIdx = data.findIndex((p) => p.userId === user?._id || p._id === user?._id);
-      const userEntry = userIdx !== -1 ? data[userIdx] : null;
-      const inCurrent = sliced.some((p) => p.userId === user?._id || p._id === user?._id);
-      return {
-        currentItems: sliced,
-        totalPages: pages,
-        currentUserEntry: userEntry,
-        currentUserRankIndex: userIdx,
-        isUserInCurrentPage: inCurrent,
-      };
-    }, [standings, currentPage, user]);
+  const canEnroll = challenge?.visibility === 'public'
+    && challenge?.status === 'active'
+    && !challenge?.isJoined
+    && Object.values(checks).every(Boolean);
 
-  const checks = {
-    points: (user?.totalPoints || 0) >= (challenge?.minTotalPoints || 0),
-    rank: (user?.overallRank || 9999999) <= (challenge?.maxOverallRank || 10000000),
-    started: Number(user?.startedEvent || 0) <= Number(challenge?.minStartedEvent || 0),
-    notEnded: (user?.currentEvent || 0) <= (challenge?.endEvent || 0),
+  const enroll = () => {
+    if (!window.confirm(`هل تريد الانضمام إلى «${challenge.title}»؟`)) return;
+    enrollMutation.mutate(id, {
+      onError: (requestError) => alert(requestError.response?.data?.message || 'تعذر الانضمام إلى التحدي')
+    });
   };
 
-  const canEnroll = Object.values(checks).every(Boolean) && !isJoined && challenge?.status === "active";
-
-  const doEnroll = (payload = {}) => {
-    const options = {
-      onSuccess: (res) => {
-        queryClient.invalidateQueries({ queryKey: ["authUser"] });
-        queryClient.invalidateQueries({ queryKey: ["standings", id] });
-        setShowJoinModal(false);
-        setJoinCodeInput("");
-        alert(res?.data?.message || res?.message || "تم الانضمام بنجاح! بالتوفيق يا بطل 🚀");
-      },
-      onError: (err) => {
-        alert(err.response?.data?.message || "عذراً، فشل الانضمام للتحدي");
-      },
-    };
-    if (payload.joinCode !== undefined) {
-      enrollMutation.mutate({ id, joinCode: payload.joinCode }, options);
-    } else {
-      enrollMutation.mutate({ id }, options);
-    }
-  };
-
-  const handleEnroll = () => {
-    if (requiresJoinCode) { setJoinCodeInput(""); setShowJoinModal(true); return; }
-    if (window.confirm("هل تريد الانضمام لهذا التحدي؟")) doEnroll();
-  };
-
-  const handleJoinModalSubmit = (e) => {
-    e.preventDefault();
-    if (!joinCodeInput.trim()) return;
-    doEnroll({ joinCode: joinCodeInput.trim() });
-  };
-
-  if (userLoading || challengesLoading) {
-    return (
-      <Layout>
-        <div className="min-h-[60vh] flex items-center justify-center text-white font-bold animate-pulse text-base">
-          جاري استدعاء بيانات البطولة...
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!challenge) {
-    return (
-      <Layout>
-        <div className="text-center p-10 text-white font-black">❌ هذا التحدي غير موجود.</div>
-      </Layout>
-    );
-  }
+  if (isLoading) return <Layout><div className="min-h-[60vh] flex items-center justify-center text-white">جارٍ تحميل التحدي...</div></Layout>;
+  if (error || !challenge) return <Layout><div className="min-h-[60vh] flex items-center justify-center text-red-300">التحدي غير موجود أو لا تملك صلاحية الوصول إليه.</div></Layout>;
 
   return (
     <Layout>
-      <div className="w-full px-3 sm:px-5 py-4 sm:py-6" dir="rtl">
-        <div className="max-w-2xl mx-auto text-white">
-
-          {/* ═══════════════════════════════════════════════
-              COMPACT GLASSMORPHISM HEADER BANNER
-          ═══════════════════════════════════════════════ */}
-          <div
-            className="relative rounded-2xl border border-[#22c55e]/40 bg-slate-800/60 backdrop-blur-xl overflow-hidden mb-3"
-            style={{
-              boxShadow: "0 0 15px rgba(34,197,94,0.15)",
-              ...(challenge.backgroundImage && {
-                backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.93), rgba(15,23,42,0.88)), url(${challenge.backgroundImage})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }),
-            }}
-          >
-            {/* Status ribbon */}
-            {challenge.status === "finished" && (
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-500 to-yellow-300" />
-            )}
-
-            <div className="p-3.5 sm:p-5">
-              {/* Top row: image + title + badges */}
-              <div className="flex items-start gap-3">
-
-                {/* Challenge Image */}
-                <div className="relative shrink-0">
-                  {challenge.image ? (
-                    <img
-                      src={challenge.image}
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border-2 border-[#22c55e]/40"
-                      alt={challenge.title}
-                    />
-                  ) : (
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 border-[#22c55e]/40 bg-slate-700/60 flex items-center justify-center text-2xl">
-                      🏆
-                    </div>
-                  )}
-                  {isJoined && (
-                    <div
-                      className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] border border-slate-900 bg-gradient-to-br from-[#22c55e] to-[#18f0c0] text-[#04120A] font-black"
-                    >
-                      ✓
-                    </div>
-                  )}
-                </div>
-
-                {/* Title + meta */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 className="text-base sm:text-xl font-black tracking-tight leading-tight text-white truncate">
-                      {challenge.title}
-                    </h1>
-                    {/* Status badge */}
-                    {challenge.status === "finished" ? (
-                      <span className="shrink-0 text-[9px] font-black bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">🏁 انتهى</span>
-                    ) : (
-                      <span className="shrink-0 text-[9px] font-black bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-2 py-0.5 rounded-full">🟢 نشط</span>
-                    )}
-                  </div>
-
-                  {/* Inline info badges row */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* GW Badge */}
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-700/80 text-[#22c55e] border border-[#22c55e]/40">
-                      📅 GW {challenge.startEvent}–{challenge.endEvent}
-                    </span>
-
-                    {/* Prize 1st */}
-                    {challenge.prize && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                        🥇 {challenge.prize}
-                      </span>
-                    )}
-
-                    {/* Prize 2nd */}
-                    {challenge.prizeSecond && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-700/80 text-slate-300 border border-slate-600/50">
-                        🥈 {challenge.prizeSecond}
-                      </span>
-                    )}
-
-                    {/* Prize 3rd */}
-                    {challenge.prizeThird && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                        🥉 {challenge.prizeThird}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              {challenge.description && (
-                <div className="mt-3 bg-slate-900/40 rounded-xl p-2.5 border border-white/5">
-                  <TextWithLinks
-                    text={challenge.description}
-                    className="text-gray-400 text-[11px] leading-relaxed"
-                  />
-                </div>
-              )}
-
-              {/* Eligibility conditions */}
-              {challenge.status === "active" && !isJoined && (
-                <div className="mt-3">
-                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">
-                    شروط التأهل:
-                  </p>
-                  <div className="grid grid-cols-2 gap-1">
-                    <ConditionItem label={`النقاط: +${challenge.minTotalPoints}`} isMet={checks.points} />
-                    <ConditionItem label={`الترتيب: تحت #${challenge.maxOverallRank?.toLocaleString()}`} isMet={checks.rank} />
-                    <ConditionItem label={`بدءاً من: GW ${challenge.minStartedEvent}`} isMet={checks.started} />
-                    <ConditionItem label={`مستمر حتى: GW ${challenge.endEvent}`} isMet={checks.notEnded} />
-                  </div>
-                </div>
-              )}
-
-              {/* CTA Button */}
-              <div className="mt-3">
-                {challenge.status === "finished" ? (
-                  <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-xs font-black">
-                    🏅 تم إغلاق التحدي
-                  </div>
-                ) : isJoined ? (
-                  <div className="flex items-center justify-center gap-3 py-3 rounded-xl text-xs font-black border border-[#22c55e]/40 bg-[#22c55e]/10">
-                    <span className="text-[#22c55e]">✅ أنت في المنافسة</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleEnroll}
-                    disabled={!canEnroll || enrollMutation.isPending}
-                    className={`w-full py-2.5 rounded-xl font-black text-sm transition-all duration-200
-                      ${canEnroll
-                        ? "bg-gradient-to-r from-[#22c55e] to-[#18f0c0] text-white hover:scale-[1.01] active:scale-[0.99] shadow-[0_6px_20px_rgba(34,197,94,0.15)]"
-                        : "bg-slate-700 text-gray-500 cursor-not-allowed"
-                      }`}
-                  >
-                    {enrollMutation.isPending ? "جاري التسجيل..." : "🚀 سجل الآن مجاناً"}
-                  </button>
-                )}
-              </div>
-
+      <main className="max-w-5xl mx-auto px-4 py-8 sm:py-12 text-right" dir="rtl">
+        <Link to={challenge.visibility === 'private' ? '/my-challenges' : '/dashboard'} className="text-sm font-bold text-gray-400 hover:text-[#22c55e]">← رجوع</Link>
+        <section className="mt-5 overflow-hidden rounded-3xl bg-slate-900/75 border border-slate-700">
+          {challenge.backgroundImage && <div className="h-32 sm:h-44 bg-cover bg-center opacity-40" style={{ backgroundImage: `url(${challenge.backgroundImage})` }} />}
+          <div className={`p-6 sm:p-8 ${challenge.backgroundImage ? '-mt-20 relative' : ''}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black ${challenge.visibility === 'private' ? 'bg-violet-500/20 text-violet-200 border border-violet-400/30' : 'bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30'}`}>{challenge.visibility.toUpperCase()}</span>
+              <span className="rounded-full bg-slate-800 text-gray-300 px-3 py-1 text-[10px] font-black">{challenge.status === 'active' ? 'نشط' : challenge.status}</span>
+              {challenge.isOwner && <span className="rounded-full bg-white/10 text-white px-3 py-1 text-[10px] font-black">أنت المالك</span>}
+            </div>
+            <div className="mt-4 flex flex-col sm:flex-row gap-5 sm:items-start justify-between">
+              <div><h1 className="text-3xl sm:text-4xl font-black text-white">{challenge.title}</h1><p className="mt-3 text-gray-300 whitespace-pre-line leading-relaxed">{challenge.description}</p></div>
+              {challenge.image && <img src={challenge.image} alt="" className="w-24 h-24 rounded-2xl object-cover border border-slate-600" />}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3 text-sm font-bold">
+              <span className="rounded-xl bg-slate-800 px-4 py-3 text-[#22c55e]">GW {challenge.startEvent} – {challenge.endEvent}</span>
+              <span className="rounded-xl bg-slate-800 px-4 py-3 text-gray-200">{challenge.participantCount || 0} مشارك</span>
+              {challenge.prize && <span className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-4 py-3 text-yellow-300">🥇 {challenge.prize}</span>}
+            </div>
+            {challenge.visibility === 'public' && !challenge.isJoined && challenge.status === 'active' && <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+              {condition('النقاط', `+${challenge.minTotalPoints}`, checks.points)}
+              {condition('الترتيب', `حتى #${Number(challenge.maxOverallRank).toLocaleString()}`, checks.rank)}
+              {condition('بداية FPL', `حتى GW ${challenge.latestStartedEvent}`, checks.started)}
+              {condition('دوري FPL Rush', challenge.requiresPlatformLeagueMembership ? 'مطلوب' : 'غير مطلوب', checks.league)}
+              {condition('التسجيل', `حتى GW ${challenge.endEvent}`, checks.notEnded)}
+            </div>}
+            {challenge.visibility === 'private' && !challenge.isJoined && !challenge.isOwner && <p className="mt-6 text-amber-300">للانضمام إلى هذا التحدي، استخدم رابط الدعوة الخاص به.</p>}
+            <div className="mt-7">
+              {challenge.isJoined ? <div className="rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/30 py-4 text-center font-black text-[#22c55e]">أنت منضم إلى هذا التحدي ✓</div>
+                : challenge.visibility === 'public' && challenge.status === 'active' ? <button disabled={!canEnroll || enrollMutation.isPending} onClick={enroll} className="w-full rounded-xl bg-[#22c55e] py-4 font-black text-slate-950 disabled:opacity-50">{enrollMutation.isPending ? 'جارٍ الانضمام...' : canEnroll ? 'انضم الآن' : 'لا تطابق شروط الانضمام'}</button>
+                  : null}
             </div>
           </div>
+        </section>
 
-          {/* ═══════════════════════════════════════════════
-              STANDINGS TABLE & PODIUM
-          ═══════════════════════════════════════════════ */}
-          <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/60 shadow-xl overflow-hidden mt-3">
-
-            {/* Podium (Shown only when Challenge is finished) */}
-            {challenge.status === "finished" && !standingsLoading && (
-              <div className="pt-6 pb-2 border-b border-slate-800/50 bg-slate-800/20">
-                <h2 className="text-center font-black text-xl text-white mb-2">تتويج الأبطال 🏆</h2>
-                <Podium winners={challenge.winners?.length > 0 ? challenge.winners : (!standingsLoading ? standings?.slice(0, 3) : [])} />
-              </div>
-            )}
-
-            {/* Table header */}
-            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-800/30">
-              <div>
-                <h2 className="text-sm font-black text-white tracking-tight">
-                  {challenge.status === "finished" ? "الترتيب النهائي 📊" : "جدول الترتيب 📊"}
-                </h2>
-                <p className="text-[10px] text-gray-500 font-medium mt-0.5">
-                  {challenge.status === "finished" ? "الترتيب الكامل للمشاركين" : "يتحدث دورياً"}
-                </p>
-              </div>
-              {challenge.status === "active" && (
-                <div className="flex items-center gap-1.5 bg-slate-950/50 px-3 py-1.5 rounded-full border border-slate-700/50">
-                  <span className="w-1.5 h-1.5 bg-[#22c55e] rounded-full animate-pulse" />
-                  <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">مباشر</span>
-                </div>
-              )}
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse min-w-[280px]">
-                <thead>
-                  <tr className="bg-slate-900/50 text-gray-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider border-b border-slate-800">
-                    <th className="p-2.5 sm:p-4 w-12 text-center">المركز</th>
-                    <th className="p-2.5 sm:p-4">الفريق / الكابتن</th>
-                    <th className="p-2.5 sm:p-4 text-center">نقاط التحدي</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40">
-                  {standingsLoading ? (
-                    <tr>
-                      <td colSpan="3" className="p-10 text-center animate-pulse text-gray-500 font-bold text-sm">
-                        جاري تحميل الترتيب...
-                      </td>
-                    </tr>
-                  ) : (
-                    <>
-                      {currentItems.map((player, index) => (
-                        <PlayerRow
-                          key={player._id || player.userId}
-                          player={player}
-                          index={(currentPage - 1) * itemsPerPage + index}
-                          isCurrentUser={player.userId === user?._id || player._id === user?._id}
-                        />
-                      ))}
-                      {isJoined && !isUserInCurrentPage && currentUserEntry && (
-                        <>
-                          <tr className="bg-slate-950/40">
-                            <td colSpan="3" className="py-1 text-center text-slate-700 text-[9px] font-black tracking-[0.3em]">
-                              •••
-                            </td>
-                          </tr>
-                          <PlayerRow
-                            player={currentUserEntry}
-                            index={currentUserRankIndex}
-                            isCurrentUser={true}
-                            isSticky={true}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
-                </tbody>
-              </table>
-
-              {!currentItems.length && !standingsLoading && (
-                <div className="p-10 text-center flex flex-col items-center gap-2">
-                  <div className="text-3xl grayscale opacity-40">🏟️</div>
-                  <p className="text-gray-500 text-xs font-bold">الساحة فاضية! كن أول المنضمين.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-slate-800 flex justify-between items-center gap-2 bg-slate-900/50" dir="ltr">
-                <button
-                  onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 400, behavior: "smooth" }); }}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-white disabled:opacity-30 text-xs font-bold hover:bg-slate-700 transition-all"
-                >
-                  Prev
-                </button>
-                <div className="flex gap-1 overflow-x-auto px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  {[...Array(totalPages)].map((_, i) => {
-                    if (window.innerWidth < 640 && Math.abs(currentPage - (i + 1)) > 1 && i !== 0 && i !== totalPages - 1) {
-                      if (Math.abs(currentPage - (i + 1)) === 2) return <span key={i} className="text-gray-600 px-1 text-xs">.</span>;
-                      return null;
-                    }
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => { setCurrentPage(i + 1); window.scrollTo({ top: 400, behavior: "smooth" }); }}
-                        className={`w-7 h-7 rounded-lg text-xs font-black transition-all shrink-0
-                          ${currentPage === i + 1
-                            ? "bg-[#22c55e] text-slate-900 scale-110 shadow-md"
-                            : "bg-slate-800 text-gray-400 hover:text-white"
-                          }`}
-                      >
-                        {i + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 400, behavior: "smooth" }); }}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-white disabled:opacity-30 text-xs font-bold hover:bg-slate-700 transition-all"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-
-        </div>
-      </div>
-
-      {/* Join Code Modal */}
-      {showJoinModal && requiresJoinCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowJoinModal(false)}>
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-w-sm w-full p-5 text-right" dir="rtl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-black text-white mb-1">كود الانضمام 🔐</h3>
-            <p className="text-gray-400 text-xs mb-4 leading-relaxed">هذا التحدي خاص ويحتاج إلى كود للانضمام.</p>
-            <form onSubmit={handleJoinModalSubmit}>
-              <input
-                type="text"
-                value={joinCodeInput}
-                onChange={(e) => setJoinCodeInput(e.target.value)}
-                placeholder="أدخل الكود هنا..."
-                className="w-full bg-slate-800/50 p-3 rounded-xl border border-slate-600 focus:border-[#22c55e] focus:bg-slate-800 transition-all outline-none text-white font-bold mb-4 text-center text-base tracking-widest"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setShowJoinModal(false)} className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-700 text-gray-400 hover:bg-slate-800 transition-colors">
-                  إلغاء
-                </button>
-                <button type="submit" disabled={!joinCodeInput.trim() || enrollMutation.isPending} className="flex-1 py-2.5 rounded-xl text-xs font-black bg-[#22c55e] text-[#04120A] shadow-[0_0_20px_rgba(34,197,94,0.2)] disabled:opacity-50">
-                  {enrollMutation.isPending ? "جاري..." : "تأكيد"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+        <section className="mt-7 rounded-3xl overflow-hidden bg-slate-900/75 border border-slate-700">
+          <header className="px-6 py-5 border-b border-slate-700"><h2 className="text-xl font-black text-white">{challenge.status === 'finished' ? 'الترتيب النهائي' : 'جدول الترتيب'}</h2></header>
+          {standingsLoading ? <div className="p-12 text-center text-gray-400">جارٍ تحميل الترتيب...</div> : standings.length ? <div className="overflow-x-auto"><table className="w-full min-w-[500px]"><thead className="bg-slate-950/40 text-gray-500 text-xs"><tr><th className="p-4 text-center">#</th><th className="p-4 text-right">الفريق / المدرب</th><th className="p-4 text-center">نقاط التحدي</th></tr></thead><tbody>{standings.map((entry, index) => <tr key={entry.userId} className={`border-t border-slate-800 ${entry.userId === user?._id ? 'bg-[#22c55e]/10' : ''}`}><td className="p-4 text-center font-black text-[#22c55e]">{index + 1}</td><td className="p-4"><p className="font-black text-white">{entry.teamName}</p><p className="text-xs text-gray-500">{entry.managerName}</p></td><td className="p-4 text-center text-xl font-black text-white">{entry.challengePoints}</td></tr>)}</tbody></table></div> : <div className="p-12 text-center text-gray-500">لا يوجد مشاركون بعد.</div>}
+        </section>
+      </main>
     </Layout>
   );
 };

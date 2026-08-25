@@ -149,10 +149,20 @@ export const authAPI = {
 
 // ── Challenge API ─────────────────────────────────────────────────────────────
 export const challengeAPI = {
-  getChallenges: () => api.get('/challenges'),
+  getChallenges: () => api.get('/challenges/public'),
+  getPublicChallenges: () => api.get('/challenges/public'),
+  getMyChallenges: () => api.get('/challenges/mine'),
   getChallengeDetails: (id) => api.get(`/challenges/${id}`),
   getStandings: (id) => api.get(`/challenges/${id}/standings`),
-  enroll: (id, payload = {}) => api.post(`/challenges/${id}/enroll`, payload),
+  enroll: (id) => api.post(`/challenges/${id}/enroll`),
+  createPrivate: (payload) => api.post('/challenges/private', payload),
+  createPublic: (payload) => api.post('/challenges/public', payload),
+  update: (id, payload) => api.patch(`/challenges/${id}`, payload),
+  remove: (id) => api.delete(`/challenges/${id}`),
+  getPrivateInvite: (id) => api.get(`/challenges/${id}/invite`),
+  rotatePrivateInvite: (id) => api.post(`/challenges/${id}/invite/rotate`),
+  previewPrivateInvite: (code) => api.get(`/challenges/invite/${encodeURIComponent(code)}`),
+  enrollWithPrivateInvite: (code) => api.post(`/challenges/invite/${encodeURIComponent(code)}/enroll`),
   closeChallenge: (id) => api.patch(`/challenges/${id}/close`),
 };
 
