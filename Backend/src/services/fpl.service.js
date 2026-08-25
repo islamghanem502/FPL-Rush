@@ -1,6 +1,6 @@
 const axios = require('axios');
-const Challenge = require('../models/challenge.model');
 const User = require('../models/user.model');
+const ChallengeParticipant = require('../models/challengeParticipant.model');
 
 const FPL_BASE_URL = 'https://fantasy.premierleague.com/api';
 
@@ -45,28 +45,42 @@ const validateTeamId = async (teamId) => {
 const syncMultipleUsers = async (users) => {
   const updatedData = [];
   try {
-    const allChallenges = await Challenge.find({});
     for (const user of users) {
       try {
+        if (!user.fpl_id) continue;
         const freshData = await validateTeamId(user.fpl_id);
         if (freshData) {
           user.totalPoints = freshData.totalPoints;
           user.overallRank = freshData.overallRank;
           user.lastGwPoints = freshData.lastGwPoints;
           user.currentEvent = freshData.currentEvent;
+          if (freshData.startedEvent !== undefined) user.startedEvent = freshData.startedEvent;
           if (freshData.country) user.country = freshData.country;
           if (freshData.countryCode) user.countryCode = freshData.countryCode;
 
-          if (user.joinedChallenges && user.joinedChallenges.length > 0) {
-            user.joinedChallenges.forEach(joined => {
-              const challenge = allChallenges.find(c => c._id.equals(joined.challengeId));
-              if (challenge && challenge.status === 'active') {
-                if (user.currentEvent < challenge.startEvent) {
-                  joined.initialPoints = user.totalPoints;
-                }
+          // Keep the existing scoring behaviour: when a user joins before the
+          // challenge starts, their baseline follows their FPL total until the
+          // start gameweek. Participants now live in their own collection.
+          const pendingParticipants = await ChallengeParticipant.find({
+            userId: user._id,
+            finalNetPoints: null
+          }).populate({ path: 'challengeId', select: 'status startEvent' });
+
+          const baselineUpdates = pendingParticipants
+            .filter((participant) => participant.challengeId
+              && participant.challengeId.status === 'active'
+              && Number(user.currentEvent || 0) < participant.challengeId.startEvent)
+            .map((participant) => ({
+              updateOne: {
+                filter: { _id: participant._id },
+                update: { $set: { initialPoints: user.totalPoints } }
               }
-            });
+            }));
+
+          if (baselineUpdates.length) {
+            await ChallengeParticipant.bulkWrite(baselineUpdates, { ordered: false });
           }
+
           await user.save();
           updatedData.push(user);
         }

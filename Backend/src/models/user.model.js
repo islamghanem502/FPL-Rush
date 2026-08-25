@@ -163,6 +163,9 @@ UserSchema.methods.toJSON = function () {
     delete user.passwordResetToken;
     delete user.passwordResetExpires;
     delete user.googleId;
+    // This legacy embedded array is kept only for the one-time migration to
+    // ChallengeParticipant. It must not leak through /auth/me.
+    delete user.joinedChallenges;
     return user;
 };
 

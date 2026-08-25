@@ -459,6 +459,13 @@ const RegisterPage = () => {
                 >
                   {loading ? "جاري التحقق من التوثيق..." : "تم الانضمام، تحقق وتفعيل الحساب ⚡"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard", { replace: true })}
+                  className="w-full mt-3 py-3 rounded-2xl font-bold text-sm text-gray-300 border border-slate-600 hover:border-[#22c55e]/60 hover:text-white transition-colors"
+                >
+                  الدخول للمنصة بدون توثيق الدوري الآن
+                </button>
               </div>
             </div>
           )}
