@@ -34,7 +34,10 @@ export const useMyChallenges = () => useQuery({
 export const useChallengeDetails = (id) => useQuery({
   queryKey: ['challenge', id],
   queryFn: async () => (await challengeAPI.getChallengeDetails(id)).data,
-  enabled: Boolean(id)
+  enabled: Boolean(id),
+  // Poll only while the challenge can still change. Once finalized, the
+  // server snapshot is immutable and this query stops by itself.
+  refetchInterval: (query) => query.state.data?.status === 'finished' ? false : 60 * 1000
 });
 
 const invalidateChallengeQueries = (queryClient) => {
@@ -126,10 +129,28 @@ export const useRotatePrivateInvite = () => {
   });
 };
 
-export const useChallengeStandings = (id) => useQuery({
+export const useSetOwnerParticipation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mode }) => challengeAPI.setOwnerParticipation(id, mode),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['myChallenges'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge', id] });
+      queryClient.invalidateQueries({ queryKey: ['standings', id] });
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
+    }
+  });
+};
+
+export const useChallengeStandings = (id, status) => useQuery({
   queryKey: ['standings', id],
   queryFn: async () => (await challengeAPI.getStandings(id)).data,
-  enabled: Boolean(id)
+  enabled: Boolean(id),
+  // Once FPL results are finalized, the endpoint is immutable. Do not poll
+  // or refetch the score table after that point.
+  staleTime: status === 'finished' ? Infinity : 0,
+  refetchInterval: status === 'finished' ? false : 60 * 1000,
+  refetchOnWindowFocus: status !== 'finished'
 });
 
 export const useCloseChallenge = () => {

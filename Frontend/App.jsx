@@ -17,6 +17,7 @@ import ProfilePage from './pages/ProfilePage';
 import PrivateChallengesPage from './pages/PrivateChallengesPage';
 import PrivateChallengeFormPage from './pages/PrivateChallengeFormPage';
 import JoinPrivateChallengePage from './pages/JoinPrivateChallengePage';
+import PublicChallengeInfoPage from './pages/PublicChallengeInfoPage';
 
 // Bonus Tracker
 import BonusPage from './pages/BonusPage';
@@ -102,6 +103,15 @@ const App = () => {
               element={
                 <ProtectedRoute requireFplLink>
                   <PrivateChallengeFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/public-challenge"
+              element={
+                <ProtectedRoute requireFplLink>
+                  <PublicChallengeInfoPage />
                 </ProtectedRoute>
               }
             />

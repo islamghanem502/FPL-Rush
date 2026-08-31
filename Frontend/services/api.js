@@ -163,6 +163,7 @@ export const challengeAPI = {
   rotatePrivateInvite: (id) => api.post(`/challenges/${id}/invite/rotate`),
   previewPrivateInvite: (code) => api.get(`/challenges/invite/${encodeURIComponent(code)}`),
   enrollWithPrivateInvite: (code) => api.post(`/challenges/invite/${encodeURIComponent(code)}/enroll`),
+  setOwnerParticipation: (id, mode) => api.patch(`/challenges/${id}/owner-participation`, { mode }),
   closeChallenge: (id) => api.patch(`/challenges/${id}/close`),
 };
 

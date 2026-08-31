@@ -98,7 +98,7 @@ const UserSchema = new mongoose.Schema({
         default: 0
     },
 
-    // ── League Verification (still used by challenges) ───────────────────────
+    // ── League Verification (registration flow) ────────────────────────────
     // true = user is a member of the private FPL Rush league
     isVerified: {
         type: Boolean,

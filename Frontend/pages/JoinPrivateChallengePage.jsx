@@ -25,11 +25,17 @@ const JoinPrivateChallengePage = () => {
         <section className="bg-slate-900/70 border border-violet-400/40 rounded-3xl p-7 sm:p-9 text-right shadow-2xl">
           <span className="text-xs font-black bg-violet-500/20 text-violet-200 border border-violet-400/30 rounded-full px-3 py-1">دعوة خاصة</span>
           <h1 className="mt-4 text-3xl font-black text-white">{challenge.title}</h1>
-          <p className="mt-3 text-gray-300 leading-relaxed whitespace-pre-line">{challenge.description}</p>
+          {challenge.description && <p className="mt-3 text-gray-300 leading-relaxed whitespace-pre-line">{challenge.description}</p>}
+          {challenge.descriptionLinks?.length > 0 && <div className="mt-4 flex flex-wrap gap-2">
+            {challenge.descriptionLinks.map((link, index) => <a key={`${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer" className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-bold text-sky-200 hover:bg-sky-400/20">{link.label || link.url} ↗</a>)}
+          </div>}
           <div className="mt-6 grid grid-cols-2 gap-3 text-center">
             <div className="rounded-xl bg-slate-800 p-3"><p className="text-xs text-gray-400">الجولات</p><b className="text-[#22c55e]">{challenge.startEvent} – {challenge.endEvent}</b></div>
             <div className="rounded-xl bg-slate-800 p-3"><p className="text-xs text-gray-400">المشاركون</p><b className="text-white">{challenge.participantCount || 0}</b></div>
           </div>
+          {[["🥇", challenge.prize], ["🥈", challenge.prizeSecond], ["🥉", challenge.prizeThird]].some(([, value]) => value) && <div className="mt-4 flex flex-wrap gap-2">
+            {[["🥇", challenge.prize], ["🥈", challenge.prizeSecond], ["🥉", challenge.prizeThird]].filter(([, value]) => value).map(([icon, value]) => <span key={`${icon}-${value}`} className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-bold text-yellow-200">{icon} {value}</span>)}
+          </div>}
           {challenge.isJoined ? (
             <button onClick={() => navigate(`/challenge/${challenge._id}`)} className="mt-7 w-full rounded-xl bg-[#22c55e] text-slate-950 font-black py-4">أنت منضم بالفعل — فتح التحدي</button>
           ) : (

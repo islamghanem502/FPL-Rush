@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "migrate:challenges": "node src/scripts/migrate-challenge-participants.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
