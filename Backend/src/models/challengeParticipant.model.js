@@ -17,6 +17,19 @@ const ChallengeParticipantSchema = new mongoose.Schema({
     // It may be refreshed while the challenge has not started yet.
     initialPoints: { type: Number, required: true, default: 0 },
     finalNetPoints: { type: Number, default: null },
+    finalRank: { type: Number, default: null },
+    // Immutable display snapshot written when the challenge is finalized. The
+    // standings page must not change if the user later edits their FPL team
+    // name or profile image.
+    finalTeamName: { type: String, default: null },
+    finalManagerName: { type: String, default: null },
+    finalAvatar: { type: String, default: null },
+    finalCountry: { type: String, default: null },
+    participationType: {
+        type: String,
+        enum: ['participant', 'owner'],
+        default: 'participant'
+    },
     joinedAt: { type: Date, default: Date.now },
     eligibilitySnapshot: {
         totalPoints: Number,

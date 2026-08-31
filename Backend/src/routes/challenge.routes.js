@@ -5,14 +5,14 @@ const auth = require('../middlewares/auth.middleware');
 const isAdmin = require('../middlewares/admin.middleware');
 const requireFplLinked = require('../middlewares/fplLinked.middleware');
 
-// Every challenge action requires an authenticated FPL-linked account. Platform
-// league membership is now an explicit challenge condition, not a global gate.
+// Every challenge action requires an authenticated FPL-linked account.
 router.use(auth);
 
 router.get('/public', requireFplLinked, challengeController.getPublicChallenges);
 router.get('/mine', requireFplLinked, challengeController.getMyChallenges);
 router.post('/private', requireFplLinked, challengeController.createPrivateChallenge);
 router.post('/public', isAdmin, challengeController.createPublicChallenge);
+router.post('/upload-image', requireFplLinked, challengeController.uploadChallengeImage);
 
 router.get('/invite/:inviteCode', requireFplLinked, challengeController.previewPrivateInvite);
 router.post('/invite/:inviteCode/enroll', requireFplLinked, challengeController.enrollWithPrivateInvite);
@@ -24,6 +24,7 @@ router.post('/reorder', isAdmin, challengeController.reorderChallenges);
 
 router.get('/:id/invite', requireFplLinked, challengeController.getPrivateInvite);
 router.post('/:id/invite/rotate', requireFplLinked, challengeController.rotatePrivateInvite);
+router.patch('/:id/owner-participation', requireFplLinked, challengeController.setOwnerParticipation);
 router.get('/:id', requireFplLinked, challengeController.getChallenge);
 router.patch('/:id', requireFplLinked, challengeController.updateChallenge);
 router.delete('/:id', requireFplLinked, challengeController.deleteChallenge);

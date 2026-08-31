@@ -5,6 +5,10 @@ const ChallengeSchema = new mongoose.Schema({
     description: { type: String },
     image: { type: String },
     backgroundImage: { type: String },
+    descriptionLinks: [{
+        label: { type: String, trim: true, maxlength: 100 },
+        url: { type: String, trim: true, maxlength: 2048 }
+    }],
     prize: { type: String },
     prizeSecond: { type: String },
     prizeThird: { type: String },
@@ -51,15 +55,24 @@ const ChallengeSchema = new mongoose.Schema({
     latestStartedEvent: { type: Number, default: 38 },
     // Read only by the migration script; never expose or use for new data.
     minStartedEvent: { type: Number, select: false },
-    requiresPlatformLeagueMembership: { type: Boolean, default: false },
-
     status: {
         type: String,
-        enum: ['draft', 'active', 'finished', 'cancelled'],
+        enum: ['draft', 'active', 'closing', 'finished', 'cancelled'],
         default: 'active',
         index: true
     },
+    // Automatic finalization claims a challenge as `closing` before fetching
+    // all participant histories. These fields make retries observable and
+    // prevent two cron invocations from finalizing the same challenge.
+    finalizationStartedAt: { type: Date, default: null },
+    finalizedAt: { type: Date, default: null },
+    finalizationError: { type: String, default: null },
     participantCount: { type: Number, default: 0 },
+    ownerParticipation: {
+        type: String,
+        enum: ['observer', 'participant'],
+        default: 'observer'
+    },
 
     winners: [{
         userId: mongoose.Schema.Types.ObjectId,

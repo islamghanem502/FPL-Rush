@@ -1,5 +1,23 @@
 const crypto = require('crypto');
 
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+// Same API/behaviour as nanoid's customAlphabet, kept dependency-free for the
+// current backend. Rejection sampling avoids modulo bias in the code space.
+const customAlphabet = (alphabet, size) => () => {
+    let value = '';
+    const maxByte = 256 - (256 % alphabet.length);
+    while (value.length < size) {
+        const bytes = crypto.randomBytes(size * 2);
+        for (const byte of bytes) {
+            if (byte >= maxByte) continue;
+            value += alphabet[byte % alphabet.length];
+            if (value.length === size) break;
+        }
+    }
+    return value;
+};
+
 const getSecret = () => {
     const secret = process.env.INVITE_CODE_SECRET || process.env.JWT_SECRET;
     if (!secret) throw new Error('INVITE_CODE_SECRET or JWT_SECRET must be configured');
@@ -16,8 +34,7 @@ const normalizeInviteCode = (value) => String(value || '')
     .replace(/[^A-Z0-9]/g, '');
 
 const createInviteCode = () => {
-    const raw = crypto.randomBytes(12).toString('hex').toUpperCase();
-    return raw.match(/.{1,6}/g).join('-');
+    return customAlphabet(INVITE_ALPHABET, 6)();
 };
 
 const hashInviteCode = (code) => crypto
@@ -56,6 +73,8 @@ const createInviteFields = () => {
 };
 
 module.exports = {
+    customAlphabet,
+    INVITE_ALPHABET,
     normalizeInviteCode,
     hashInviteCode,
     decryptInviteCode,

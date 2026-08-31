@@ -3,6 +3,7 @@ const connectDB = require('./config/database');
 const cron = require('node-cron');
 const User = require('./models/user.model');
 const { syncMultipleUsers } = require('./services/fpl.service');
+const { finalizeEligibleChallenges } = require('./services/challenge-finalization.service');
 
 // Connect to MongoDB
 connectDB();
@@ -21,6 +22,14 @@ cron.schedule('*/15 * * * *', async () => {
       console.log(`✅ Synced ${users.length} users.`);
     } else {
       console.log('ℹ️ No users found for sync.');
+    }
+
+    // Finalization is independent from user synchronization. It also runs
+    // when there are no users and only closes challenges after FPL confirms
+    // the end gameweek is final.
+    const finalization = await finalizeEligibleChallenges();
+    if (finalization.finalized > 0) {
+      console.log(`Finalized ${finalization.finalized} challenge(s).`);
     }
 
   } catch (error) {

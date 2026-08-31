@@ -14,8 +14,8 @@ const ProtectedRoute = ({ children, adminOnly = false, requireFplLink = false })
   if (adminOnly && !isAdmin) return <Navigate to="/dashboard" replace />;
 
   // A linked FPL account is required to evaluate challenge eligibility and
-  // scores. FPL Rush league membership is now optional per challenge.
-  if (requireFplLink && user.accountStatus !== 'fpl_linked') {
+  // scores.
+  if (requireFplLink && (user.accountStatus !== 'fpl_linked' || !user.fpl_id)) {
     return <Navigate to="/register" replace />;
   }
 
