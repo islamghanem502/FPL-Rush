@@ -95,7 +95,8 @@ const validateTeamId = async (teamId) => {
       overallRank: data.summary_overall_rank,
       lastGwPoints: data.summary_event_points,
       country: data.player_region_name,
-      countryCode: data.player_region_iso_code_short
+      countryCode: data.player_region_iso_code_short,
+      yearsActive: data.years_active
     };
   } catch (error) {
     console.error(`Error fetching FPL data for team ${teamId}:`, error.message);

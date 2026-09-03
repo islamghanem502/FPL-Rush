@@ -145,6 +145,11 @@ const UserSchema = new mongoose.Schema({
         default: null
     },
 
+    yearsActive: {
+        type: Number,
+        default: 1
+    },
+
     // ── Contact ─────────────────────────────────────────────────────────────
     phone: {
         type: String,

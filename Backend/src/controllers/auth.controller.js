@@ -76,7 +76,7 @@ exports.register = async (req, res) => {
 };
 
 
-// Helper to auto-sync FPL profile data & country from FPL API to MongoDB
+// Helper to auto-sync FPL profile data & from FPL API to MongoDB
 const syncUserFplData = async (user) => {
     if (!user || !user.fpl_id) return user;
     try {
@@ -89,6 +89,7 @@ const syncUserFplData = async (user) => {
             if (freshFpl.totalPoints !== undefined) user.totalPoints = freshFpl.totalPoints;
             if (freshFpl.overallRank !== undefined) user.overallRank = freshFpl.overallRank;
             if (freshFpl.lastGwPoints !== undefined) user.lastGwPoints = freshFpl.lastGwPoints;
+            if (freshFpl.yearsActive !== undefined) user.yearsActive = freshFpl.yearsActive;
             await user.save();
         }
     } catch (err) {
@@ -364,6 +365,8 @@ exports.linkFplId = async (req, res) => {
             return res.status(400).json({ message: 'رقم مُعرف الفريق (FPL ID) غير صحيح أو غير موجود' });
         }
 
+        if (fplData.yearsActive !== undefined) user.yearsActive = fplData.yearsActive;
+
         user.fpl_id = fplIdNum;
         user.fpl_linked_at = new Date();
         user.accountStatus = 'fpl_linked';
@@ -424,15 +427,15 @@ exports.verifyUserLeague = async (req, res) => {
             // Fetch and set team details ONLY AFTER verification is successful
             const fplData = await fplService.validateTeamId(user.fpl_id);
             if (fplData) {
-                if (fplData.teamName)    user.teamName    = fplData.teamName;
+                if (fplData.teamName) user.teamName = fplData.teamName;
                 if (fplData.managerName) user.managerName = fplData.managerName;
-                if (fplData.country)     user.country     = fplData.country;
+                if (fplData.country) user.country = fplData.country;
                 if (fplData.countryCode) user.countryCode = fplData.countryCode;
-                if (fplData.startedEvent  !== undefined) user.startedEvent  = fplData.startedEvent;
-                if (fplData.currentEvent  !== undefined) user.currentEvent  = fplData.currentEvent;
-                if (fplData.totalPoints   !== undefined) user.totalPoints   = fplData.totalPoints;
-                if (fplData.overallRank   !== undefined) user.overallRank   = fplData.overallRank;
-                if (fplData.lastGwPoints  !== undefined) user.lastGwPoints  = fplData.lastGwPoints;
+                if (fplData.startedEvent !== undefined) user.startedEvent = fplData.startedEvent;
+                if (fplData.currentEvent !== undefined) user.currentEvent = fplData.currentEvent;
+                if (fplData.totalPoints !== undefined) user.totalPoints = fplData.totalPoints;
+                if (fplData.overallRank !== undefined) user.overallRank = fplData.overallRank;
+                if (fplData.lastGwPoints !== undefined) user.lastGwPoints = fplData.lastGwPoints;
             }
 
             await user.save();
@@ -586,4 +589,4 @@ exports.getUserFplHistory = async (req, res) => {
         console.error('[getUserFplHistory]', error);
         res.status(500).json({ message: 'خطأ في جلب سجل الفانتزي', error: error.message });
     }
-};
+};

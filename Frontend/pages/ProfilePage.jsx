@@ -160,7 +160,7 @@ const ProfilePage = () => {
 
         {/* ── Main Profile Header Card ────────────────────────────────────── */}
         <div className="relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden mb-8">
-          
+
           <div className="absolute top-0 right-1/4 w-80 h-80 bg-[#22c55e]/8 rounded-full blur-3xl pointer-events-none" />
 
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
@@ -226,6 +226,13 @@ const ProfilePage = () => {
                     {user.country}
                   </span>
                 )}
+                {user?.yearsActive && (
+                  <span className="bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700/60 text-[#22c55e] flex items-center gap-1.5">
+                    <span>⏱️</span>
+                    {user.yearsActive} {user.yearsActive === 1 ? 'موسم' : 'مواسم'}
+                  </span>
+                )}
+
                 {user?.fpl_id && (
                   <span className="bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700/60 text-gray-300">
                     FPL ID: {user.fpl_id}
@@ -279,7 +286,7 @@ const ProfilePage = () => {
 
         {/* ── SECTION 1: GAMEWEEK JOURNEY & PERFORMANCE GRAPH ─────────────── */}
         <div className="space-y-8 mb-8">
-          
+
           {/* Interactive Recharts Graph Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -297,17 +304,15 @@ const ProfilePage = () => {
               <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto gap-1">
                 <button
                   onClick={() => setChartMode('points')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    chartMode === 'points' ? 'bg-[#22c55e] text-slate-950' : 'text-gray-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartMode === 'points' ? 'bg-[#22c55e] text-slate-950' : 'text-gray-400 hover:text-white'
+                    }`}
                 >
                   النقاط لكل جولة
                 </button>
                 <button
                   onClick={() => setChartMode('rank')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    chartMode === 'rank' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartMode === 'rank' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
                 >
                   الترتيب العام
                 </button>
