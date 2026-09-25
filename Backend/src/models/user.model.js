@@ -53,8 +53,10 @@ const UserSchema = new mongoose.Schema({
     // ── FPL Identity (linked AFTER email verification) ───────────────────────
     fpl_id: {
         type: Number,
-        unique: true,
-        sparse: true,    // allows multiple null values
+        index: {
+            unique: true,
+            partialFilterExpression: { fpl_id: { $type: 'number' } }
+        },
         default: null
     },
 

@@ -222,7 +222,7 @@ exports.getBootstrapTeams = async (req, res) => {
     const bootstrap = await fetchBootstrap();
     const teamsMap = {};
     bootstrap.teams?.forEach((t) => {
-      teamsMap[t.id] = { name: t.name, short_name: t.short_name };
+      teamsMap[t.id] = { name: t.name, short_name: t.short_name, code: t.code };
     });
     const elementsMap = {};
     bootstrap.elements?.forEach((el) => {

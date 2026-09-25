@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* ── Design tokens (from the FPL RUSH visual law, v1.0) ─────────────────── */
+@theme {
+  /* Colour has a job. Nothing else is allowed. */
+  --color-ink: #1a1a1a;          /* authority · main surfaces */
+  --color-canvas: #f5f0e8;       /* every screen background */
+  --color-paper: #ffffff;        /* information surfaces */
+  --color-brand: #f5d623;        /* you · the winner · the brand */
+  --color-action: #e8333a;       /* the one primary button */
+  --color-action-press: #c22a31;
+  --color-live: #00b5ad;         /* live · verified · data */
+  --color-muted: #4a4a4a;
+  --color-line: #ede8de;
+  --color-line-strong: #e0dace;
+  --color-placeholder: #6b6357;
+  --color-disabled: #ede8de;
+  --color-disabled-text: #8a8172;
+
+  --font-ar: "Cairo", system-ui, sans-serif;
+  --font-num: "Archivo", "Cairo", system-ui, sans-serif;
+  --font-hand: "Marhey", "Cairo", system-ui, sans-serif; /* hand-lettered notes only (landing) */
+
+  /* Sharp = data & authority · Round = actions & people */
+  --radius-panel: 8px;
+  --radius-chip: 10px;
+  --radius-card: 20px;
+  --radius-chrome: 32px;
+
+  --animate-livepulse: livepulse 1.6s ease-in-out infinite;
+  @keyframes livepulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    font-family: var(--font-ar);
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-weight: 600;
+    overflow-x: hidden;
+    min-height: 100dvh;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  input::placeholder, textarea::placeholder { color: var(--color-placeholder); font-weight: 600; }
+  /* Native number spinners are noise on a phone */
+  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+}
+
+/* ── Typography helpers ─────────────────────────────────────────────────── */
+@utility num {
+  /* Every number and every latin string: Archivo 900, tabular, LTR */
+  font-family: var(--font-num);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+@utility num-display {
+  /* Hero numbers: condensed + italic */
+  font-family: var(--font-num);
+  font-weight: 900;
+  font-stretch: 80%;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+@utility jersey {
+  /* Your name printed like the back of a shirt */
+  font-family: var(--font-num);
+  font-weight: 900;
+  font-stretch: 80%;
+  font-style: italic;
+  text-transform: uppercase;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+@utility hand {
+  font-family: var(--font-hand);
+  font-weight: 700;
+}
+@utility mono {
+  font-family: ui-monospace, Menlo, monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ── Brand ornaments — one stripe per screen, nothing else ─────────────── */
+@utility stripe {
+  height: 8px;
+  background: repeating-linear-gradient(115deg, #e8333a 0 10px, #f5d623 10px 20px, #00b5ad 20px 30px);
+}
+@utility podium-hatch {
+  background: repeating-linear-gradient(115deg, rgba(26, 26, 26, 0.85) 0 7px, transparent 7px 14px);
+}
+@utility chrome-disc {
+  /* faint hatched disc in the corner of a black header */
+  background: repeating-linear-gradient(115deg, rgba(245, 214, 35, 0.14) 0 9px, transparent 9px 18px);
+}
+
+/* ── Duotone: every image that enters the platform becomes black/yellow ── */
+@utility duotone {
+  background: var(--color-brand);
+  overflow: hidden;
+}
+.duotone > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.15) brightness(1.05);
+  mix-blend-mode: multiply;
+  display: block;
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
