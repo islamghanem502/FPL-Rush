@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { Field, Input } from '@/components/ui/Field';
 import { NumberPanel } from '@/components/ui/Numbers';
 import { Avatar, Segmented, Skeleton } from '@/components/ui/Misc';
-import { copyText } from '@/components/challenge/InviteBox';
+import { copyText } from '@/lib/clipboard';
 
 const WINDOW = 9;
 

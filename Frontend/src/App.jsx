@@ -37,14 +37,14 @@ export default function App() {
             <Route path="/forgot" element={<ForgotPassword />} />
           </Route>
 
-          {/* Signed in */}
+          {/* Signed in + verified (mandatory — see RequireAuth) */}
           <Route element={<RequireAuth />}>
             <Route path="/home" element={<Home />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
 
-          {/* Signed in + FPL linked (the backend requires it for challenges) */}
-          <Route element={<RequireAuth fpl />}>
+          {/* Signed in + verified — same guard, grouped for reading */}
+          <Route element={<RequireAuth />}>
             <Route path="/challenges" element={<Challenges />} />
             <Route path="/challenges/new" element={<CreateChallenge />} />
             <Route path="/challenges/:id/edit" element={<CreateChallenge />} />

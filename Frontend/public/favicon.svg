@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- FPL Rush mark: the switch, turned on (RTL: the knob rests on the left) -->
+  <rect width="64" height="64" rx="15" fill="#1b1c1f"/>
+  <rect x="5.5" y="17.5" width="53" height="29" rx="14.5" fill="#13a853" stroke="#000" stroke-width="4"/>
+  <circle cx="20.5" cy="32" r="9" fill="#fff" stroke="#000" stroke-width="3.5"/>
+</svg>

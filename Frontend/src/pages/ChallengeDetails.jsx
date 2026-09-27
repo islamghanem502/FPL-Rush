@@ -19,7 +19,8 @@ import { Avatar, Empty, Loading, Logo, PrizeRow } from '@/components/ui/Misc';
 import { StateChip } from '@/components/challenge/ChallengeCard';
 import { Standings, rankOf } from '@/components/challenge/Standings';
 import { Podium } from '@/components/challenge/Podium';
-import { InviteBox, copyText } from '@/components/challenge/InviteBox';
+import { InviteBox } from '@/components/challenge/InviteBox';
+import { copyText } from '@/lib/clipboard';
 import { OwnerMode } from '@/components/challenge/OwnerMode';
 
 // Joining locks your baseline — ask for a second tap instead of a modal.

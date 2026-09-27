@@ -1,42 +1,22 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/api';
+import { copyText } from '@/lib/clipboard';
 import { hasToken } from '@/lib/token';
-import { isAdmin, isFplLinked, LEAGUE_CODE, WHATSAPP_SUPPORT } from '@/lib/challenge';
-import { useLinkFpl, useMe, useRegister, useVerifyLeague } from '@/hooks/useAuth';
-import { Chrome } from '@/components/layout/Chrome';
-import { Page } from '@/components/layout/Shell';
-import { GoogleButton } from '@/components/layout/GoogleButton';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Field, Input, CodeInput, Notice } from '@/components/ui/Field';
-import { copyText } from '@/components/challenge/InviteBox';
+import { homeFor, isAdmin, isFplLinked, isVerified, LEAGUE_CODE, WHATSAPP_SUPPORT } from '@/lib/challenge';
+import { useLinkFpl, useLogout, useMe, useRegister, useVerifyLeague } from '@/hooks/useAuth';
+import { useCurrentGw } from '@/hooks/useBonus';
+import { AuthShell, AuthTitle } from '@/components/auth/AuthShell';
+import { PhoneCallout } from '@/components/landing/PhoneCallout';
+import { GoogleButton, OrEmail } from '@/components/site/GoogleButton';
+import { Button, TextLink } from '@/components/kit/Button';
+import { Field, Input, PasswordInput } from '@/components/kit/Field';
+import { Steps } from '@/components/kit/Steps';
+import { Panel } from '@/components/kit/Panel';
 
-const STEPS = ['الحساب', 'FPL ID', 'التوثيق'];
-
-function StepPills({ step }) {
-  return (
-    <div className="flex items-center gap-2">
-      {STEPS.map((label, i) => {
-        const n = i + 1;
-        return (
-          <div
-            key={label}
-            className={cn(
-              'flex flex-1 items-center gap-2 rounded-full px-3 py-2 text-[12.5px]',
-              step === n ? 'bg-brand font-black text-ink' : step > n ? 'bg-live font-black text-ink' : 'border-[1.5px] border-canvas/45 font-bold text-canvas',
-            )}
-          >
-            <span className="num text-[13px]">{n}</span>
-            <span>{label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const STEPS = ['الحساب', 'ربط فريقك', 'التوثيق'];
+const FPL_SITE = 'https://fantasy.premierleague.com/';
 
 // Step 1 — email + password
 function CreateAccount() {
@@ -45,135 +25,181 @@ function CreateAccount() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [show, setShow] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   const submit = (e) => {
     e.preventDefault();
-    if (password !== confirm) return toast.error('كلمتا المرور غير متطابقتين');
     if (password.length < 6) return toast.error('كلمة المرور 6 أحرف على الأقل');
+    if (password !== confirm) return toast.error('كلمتا المرور غير متطابقتين');
     register.mutate({ email: email.trim(), password }, { onError: (err) => toast.error(errorMessage(err)) });
   };
 
   return (
-    <Card as="form" onSubmit={submit}>
-      <Field label="البريد الإلكتروني">
-        <Input type="email" dir="ltr" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@mail.com" />
-      </Field>
-      <Field label="كلمة المرور" hint="6 أحرف على الأقل" className="mt-3.5">
-        <div className="relative">
-          <Input type={show ? 'text' : 'password'} autoComplete="new-password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pl-16" />
-          <button type="button" onClick={() => setShow((v) => !v)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted">{show ? 'إخفاء' : 'إظهار'}</button>
-        </div>
-      </Field>
-      <Field label="تأكيد كلمة المرور" className="mt-3.5">
-        <Input type={show ? 'text' : 'password'} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
-      </Field>
-      <Button type="submit" size="lg" full className="mt-4" loading={register.isPending} disabled={!email || !password || !confirm}>التالي — ربط FPL</Button>
-      <GoogleButton text="signup_with" onDone={(user) => navigate(isAdmin(user) ? '/admin' : isFplLinked(user) ? '/home' : '/register', { replace: true })} />
-      <p className="mt-4 text-center text-[13px] font-semibold text-muted">
-        لديك حساب؟ <Link to="/login" className="font-black text-ink">تسجيل الدخول</Link>
+    <>
+      <AuthTitle title="اعمل حسابك" sub="تلات خطوات: حسابك، ربط فريقك من الفانتازي، وتوثيقه — وبعدها تدخل التحديات." />
+      <GoogleButton text="signup_with" onDone={(user) => navigate(homeFor(user), { replace: true })} />
+      <OrEmail />
+      <form onSubmit={submit} className="flex flex-col gap-5">
+        <Field id="email" label="البريد الإلكتروني">
+          <Input id="email" type="email" dir="ltr" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@mail.com" />
+        </Field>
+        <Field id="password" label="كلمة المرور" hint="6 أحرف على الأقل">
+          <PasswordInput id="password" autoComplete="new-password" required minLength={6} visible={visible} onVisible={setVisible} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        </Field>
+        <Field id="confirm" label="أكّد كلمة المرور">
+          <PasswordInput id="confirm" autoComplete="new-password" required toggle={false} visible={visible} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
+        </Field>
+        <Button type="submit" size="lg" knob full className="mt-2" loading={register.isPending} disabled={!email || !password || !confirm}>
+          التالي — ربط فريقك
+        </Button>
+      </form>
+    </>
+  );
+}
+
+// Where the id lives: the Points page URL, with the id lit up.
+function WhereIsMyId({ gw }) {
+  return (
+    <div className="rounded-box bg-night-2 p-4 ring-1 ring-white/[.06]">
+      <div className="font-display text-[14px] font-semibold">فين ألاقي الرقم؟</div>
+      <p className="mt-1.5 text-[13.5px] leading-[1.8] text-white/60">
+        افتح موقع الفانتازي وادخل على صفحة <b className="font-semibold text-white">Points</b> — الرقم اللي في الرابط هو رقم فريقك.
       </p>
-    </Card>
+      <div dir="ltr" className="mt-3 truncate rounded-full bg-night px-4 py-2.5 text-[12px] text-white/45 md:text-[13px]">
+        fantasy.premierleague.com/entry/
+        <span className="rounded-md bg-pitch px-1.5 py-0.5 font-display font-bold text-edge">1234567</span>
+        /event/{gw || 1}
+      </div>
+    </div>
   );
 }
 
 // Step 2 — link the FPL team id
-function LinkFpl({ me, onLinked }) {
+function LinkFpl({ me, gw, onLinked }) {
   const link = useLinkFpl();
-  const [id, setId] = useState(me?.fpl_id || '');
+  const [id, setId] = useState(me?.fpl_id ? String(me.fpl_id) : '');
   const submit = (e) => {
     e.preventDefault();
     const n = Number(id);
-    if (!Number.isInteger(n) || n <= 0) return toast.error('اكتب رقم FPL ID صحيح');
-    link.mutate(n, { onSuccess: ({ data }) => { toast.success(`تم ربط ${data.user?.teamName || 'فريقك'}`); onLinked?.(); }, onError: (err) => toast.error(errorMessage(err)) });
+    if (!Number.isInteger(n) || n <= 0) return toast.error('اكتب رقم فريق صحيح');
+    link.mutate(n, {
+      onSuccess: ({ data }) => { toast.success(`تم ربط ${data.user?.teamName || 'فريقك'}`); onLinked?.(); },
+      onError: (err) => toast.error(errorMessage(err)),
+    });
   };
+
   return (
-    <Card as="form" onSubmit={submit}>
-      <div className="text-[16px] font-black">رقم فريقك في FPL</div>
-      <p className="mt-1 text-[12.5px] font-semibold leading-relaxed text-muted">نجلب اسم الفريق والنقاط والترتيب تلقائيًا من موقع الفانتازي.</p>
-      <CodeInput className="mt-4" inputMode="numeric" pattern="[0-9]*" value={id} onChange={(e) => setId(e.target.value.replace(/\D/g, ''))} placeholder="1234567" required />
-      <div className="mt-4 rounded-chip bg-canvas px-3.5 py-3 text-[12.5px] font-semibold leading-[1.9]">
-        <div className="font-black">إزاي تلاقي الـ ID؟</div>
-        1. افتح موقع الفانتازي وادخل على <b className="font-black">Points</b>
-        <br />2. الرقم اللي في رابط الصفحة هو الـ ID بتاعك
-        <br /><span className="mono text-[11px] text-muted">fantasy.premierleague.com/entry/<b className="text-ink">1234567</b>/event/3</span>
-      </div>
-      <Button type="submit" size="lg" full className="mt-4" loading={link.isPending} disabled={!id}>التالي — التوثيق</Button>
-      <Button variant="tertiary" size="sm" full className="mt-1" href="https://fantasy.premierleague.com/">فتح موقع الفانتازي ↗</Button>
-    </Card>
+    <>
+      <AuthTitle title="اربط فريقك من الفانتازي" sub="اكتب رقم فريقك (FPL ID) — هنجيب اسم الفريق والنقاط والترتيب من اللعبة نفسها." />
+      <form onSubmit={submit} className="flex flex-col gap-5">
+        <Field id="fpl-id" label="رقم فريقك في FPL">
+          <Input
+            id="fpl-id"
+            dir="ltr"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            required
+            value={id}
+            onChange={(e) => setId(e.target.value.replace(/\D/g, ''))}
+            placeholder="1234567"
+            className="h-14 text-center font-display text-[24px] font-bold tracking-[.12em] tabular-nums md:h-16 md:text-[28px]"
+          />
+        </Field>
+        <WhereIsMyId gw={gw} />
+        <Button type="submit" size="lg" knob full loading={link.isPending} disabled={!id}>اربط فريقي</Button>
+      </form>
+      {me?.fpl_id && me.isVerified && (
+        <p className="text-[13.5px] leading-relaxed text-white/60">
+          حسابك موثّق برقم فريق تاني — لتغييره <TextLink href={WHATSAPP_SUPPORT} className="text-[13.5px]">كلّم الدعم</TextLink>.
+        </p>
+      )}
+      <p className="text-center">
+        <TextLink href={FPL_SITE}>افتح موقع الفانتازي ↗</TextLink>
+      </p>
+    </>
   );
 }
 
-// Step 3 — join the official league and verify (optional for now)
-function VerifyLeague({ me, onEdit }) {
+// Step 3 — join the official league and verify. Mandatory: the dashboard
+// stays closed until it passes (see RequireAuth).
+function VerifyLeague({ me, from, onEdit }) {
   const verify = useVerifyLeague();
   const navigate = useNavigate();
   const run = () =>
     verify.mutate(undefined, {
-      onSuccess: () => { toast.success('تم التوثيق — أهلاً بك في FPL Rush'); navigate('/home', { replace: true }); },
-      onError: (err) => toast.error(errorMessage(err, 'لم نجد فريقك في الدوري بعد')),
+      onSuccess: () => { toast.success('تم التوثيق — أهلاً بيك في FPL Rush'); navigate(from || '/home', { replace: true }); },
+      onError: (err) => toast.error(errorMessage(err, 'لسه ملقيناش فريقك في الدوري')),
     });
 
   return (
     <>
-      <Card className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-[16px] font-black">{me.teamName || 'فريقك'}</div>
-          <div className="text-[12px] font-semibold text-muted">{me.managerName} · <span className="mono">ID {me.fpl_id}</span></div>
-        </div>
-        <Button variant="tertiary" size="sm" onClick={onEdit}>تعديل</Button>
-      </Card>
+      <AuthTitle title="آخر خطوة: وثّق فريقك" sub="انضم لدوري FPL Rush الرسمي بالكود — التوثيق بيأكد إن الفريق فريقك، ومن غيره مش هتقدر تدخل التحديات." />
 
-      <Card className="mt-3">
-        <div className="text-[16px] font-black">انضم لدوري FPL Rush الرسمي</div>
-        <p className="mt-1 text-[12.5px] font-semibold leading-relaxed text-muted">التوثيق يؤكد إن الفريق بتاعك. انضم بالكود ثم اضغط تحقق.</p>
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-chip bg-canvas px-4 py-3">
-          <span className="text-[12.5px] font-bold">كود الدوري</span>
-          <button type="button" onClick={() => copyText(LEAGUE_CODE)} className="jersey text-[22px] tracking-[.1em]">{LEAGUE_CODE}</button>
+      <Panel className="flex items-center justify-between gap-4 py-4">
+        <div className="min-w-0">
+          <div className="truncate font-display text-[17px] font-bold md:text-[19px]">{me.teamName || 'فريقك'}</div>
+          <div className="mt-0.5 truncate text-[13px] text-white/55">
+            {me.managerName} · <span dir="ltr">ID {me.fpl_id}</span>
+          </div>
         </div>
-        <Button variant="secondary" full className="mt-2.5" onClick={() => copyText(LEAGUE_CODE)}>نسخ الكود</Button>
-        <Button variant="tertiary" size="sm" full className="mt-1" href="https://fantasy.premierleague.com/leagues/join/private">الذهاب لصفحة الانضمام في الفانتازي ↗</Button>
-        <Button size="lg" full className="mt-4" loading={verify.isPending} onClick={run}>انضممت — تحقق الآن</Button>
-        <Button variant="tertiary" full className="mt-1" to="/home">الدخول بدون توثيق الآن</Button>
-      </Card>
+        <TextLink onClick={onEdit} className="shrink-0 text-[13px]">تعديل</TextLink>
+      </Panel>
+
+      <div>
+        <div className="font-display text-[14px] font-semibold">كود الدوري</div>
+        <div className="mt-2 flex items-center gap-3 rounded-full bg-night-2 p-2 ps-6 ring-1 ring-white/[.06]">
+          <span dir="ltr" className="flex-1 font-display text-[21px] font-extrabold tracking-[.16em] text-pitch md:text-[26px]">{LEAGUE_CODE}</span>
+          <Button variant="secondary" size="sm" onClick={() => copyText(LEAGUE_CODE)}>انسخ</Button>
+        </div>
+        <p className="mt-3 text-[13.5px] leading-[1.8] text-white/60">
+          انسخ الكود وانضم بيه من صفحة الدوريات في الفانتازي، وبعدها ارجع هنا واضغط تحقق.{' '}
+          <TextLink href="https://fantasy.premierleague.com/leagues/join/private" className="text-[13.5px]">صفحة الانضمام ↗</TextLink>
+        </p>
+      </div>
+
+      <Button size="lg" knob full loading={verify.isPending} onClick={run}>انضممت — اتحقق دلوقتي</Button>
+      <p className="text-center text-[14px] text-white/55">
+        في مشكلة في التوثيق؟ <TextLink href={WHATSAPP_SUPPORT} className="text-[14px]">كلّمنا على واتساب</TextLink>
+      </p>
     </>
   );
 }
 
 export default function Register() {
   const { data: me, isPending } = useMe();
+  const { data: gw } = useCurrentGw();
+  const navigate = useNavigate();
+  const logout = useLogout();
+  const from = useLocation().state?.from?.pathname; // e.g. an invite link that sent them here
   const signedIn = hasToken() && Boolean(me);
   const [editing, setEditing] = useState(false);
 
-  if (hasToken() && isPending) return <><Chrome back="/" title="إنشاء حساب" /><div className="p-10" /></>;
+  if (hasToken() && isPending) return <AuthShell />;
   if (signedIn && isAdmin(me)) return <Navigate to="/admin" replace />;
-  if (signedIn && me.isVerified && !editing) return <Navigate to="/home" replace />;
+  if (signedIn && isVerified(me) && !editing) return <Navigate to={from || '/home'} replace />;
 
   const step = !signedIn ? 1 : !isFplLinked(me) || editing ? 2 : 3;
+  // The phone (the FPL app) only where it explains something: linking the team.
+  const aside = step === 1 ? null : <PhoneCallout gw={gw} className="mt-6" />;
 
   return (
-    <>
-      <Chrome back={signedIn ? '/home' : '/'} title={signedIn ? 'إكمال الحساب' : 'إنشاء حساب'}>
-        <StepPills step={step} />
-        <div className="mt-2.5 text-[12px] font-semibold opacity-70">
-          {step === 1 && 'ثلاث خطوات قصيرة وتدخل ملعب التحديات.'}
-          {step === 2 && 'اربط فريقك عشان نحسب نقاطك ونفتح لك التحديات.'}
-          {step === 3 && 'خطوة أخيرة اختيارية تؤكد إن الفريق بتاعك.'}
-        </div>
-      </Chrome>
-      <Page>
-        {step === 1 && <CreateAccount />}
-        {step === 2 && <LinkFpl me={me} onLinked={() => setEditing(false)} />}
-        {step === 3 && <VerifyLeague me={me} onEdit={() => setEditing(true)} />}
-        {step === 2 && me?.fpl_id && me.isVerified && (
-          <Notice className="mt-3">حسابك موثق بـ FPL ID آخر — لتغييره تواصل مع الدعم.</Notice>
-        )}
-        {signedIn && (
-          <p className="mt-6 text-center text-[12px] font-semibold text-muted">
-            محتاج مساعدة؟ <a href={WHATSAPP_SUPPORT} target="_blank" rel="noreferrer" className="font-black text-ink">الدعم عبر واتساب</a>
-          </p>
-        )}
-      </Page>
-    </>
+    <AuthShell
+      stepKey={step}
+      end={
+        signedIn ? (
+          // Unverified users can't reach the dashboard, so the way out lives here.
+          <TextLink onClick={() => { logout(); navigate('/', { replace: true }); }} className="text-[13.5px]">خروج</TextLink>
+        ) : (
+          <Button variant="secondary" size="sm" to="/login">دخول</Button>
+        )
+      }
+      aside={aside}
+    >
+      <Steps steps={STEPS} current={step} />
+      {step === 1 && <CreateAccount />}
+      {step === 2 && <LinkFpl me={me} gw={gw} onLinked={() => setEditing(false)} />}
+      {step === 3 && <VerifyLeague me={me} from={from} onEdit={() => setEditing(true)} />}
+    </AuthShell>
   );
 }

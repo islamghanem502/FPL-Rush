@@ -3,6 +3,17 @@
 export const isFplLinked = (user) => user?.accountStatus === 'fpl_linked' && Boolean(user?.fpl_id);
 export const isAdmin = (user) => user?.role === 'admin';
 
+// Verified = linked AND confirmed in the official FPL Rush league. Mandatory:
+// nobody reaches the dashboard without it (admins excepted).
+export const isVerified = (user) => isFplLinked(user) && Boolean(user?.isVerified);
+
+// Where a signed-in user belongs: admin panel, onboarding, or where they were going.
+export const homeFor = (user, from) => {
+  if (isAdmin(user)) return '/admin';
+  if (!isVerified(user)) return '/register';
+  return from || '/home';
+};
+
 // One word the UI can key on. `currentGw` comes from /bonus/current-gw.
 export const challengeState = (challenge, currentGw) => {
   if (!challenge) return 'upcoming';

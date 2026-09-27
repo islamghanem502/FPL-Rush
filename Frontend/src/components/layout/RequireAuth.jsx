@@ -1,13 +1,14 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { hasToken } from '@/lib/token';
-import { isAdmin, isFplLinked } from '@/lib/challenge';
+import { homeFor, isAdmin, isVerified } from '@/lib/challenge';
 import { useMe } from '@/hooks/useAuth';
 import { Loading } from '@/components/ui/Misc';
 
-// Route guard. `fpl` = needs a linked FPL account (every challenge screen).
-// `admin` = needs the admin role. Admins can use challenge screens unlinked,
-// exactly as the backend allows.
-export function RequireAuth({ fpl = false, admin = false }) {
+// Route guard for the whole signed-in app. Verification (linked team +
+// joined the official league) is mandatory — unverified users go back to
+// onboarding, carrying where they were headed (e.g. an invite link).
+// `admin` = needs the admin role; admins skip verification.
+export function RequireAuth({ admin = false }) {
   const location = useLocation();
   const { data: me, isPending, isError } = useMe();
 
@@ -15,7 +16,7 @@ export function RequireAuth({ fpl = false, admin = false }) {
   if (isPending) return <Loading />;
   if (isError || !me) return <Navigate to="/login" replace />;
   if (admin && !isAdmin(me)) return <Navigate to="/home" replace />;
-  if (fpl && !isAdmin(me) && !isFplLinked(me)) return <Navigate to="/register" replace />;
+  if (!isAdmin(me) && !isVerified(me)) return <Navigate to="/register" state={{ from: location }} replace />;
 
   return <Outlet />;
 }
@@ -23,6 +24,6 @@ export function RequireAuth({ fpl = false, admin = false }) {
 // Signed-in users never see the landing/login screens.
 export function GuestOnly() {
   const { data: me } = useMe();
-  if (hasToken() && me) return <Navigate to={isAdmin(me) ? '/admin' : '/home'} replace />;
+  if (hasToken() && me) return <Navigate to={homeFor(me)} replace />;
   return <Outlet />;
 }

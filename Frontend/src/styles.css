@@ -19,7 +19,6 @@
 
   --font-ar: "Cairo", system-ui, sans-serif;
   --font-num: "Archivo", "Cairo", system-ui, sans-serif;
-  --font-hand: "Marhey", "Cairo", system-ui, sans-serif; /* hand-lettered notes only (landing) */
 
   /* Sharp = data & authority · Round = actions & people */
   --radius-panel: 8px;
@@ -34,8 +33,48 @@
   }
 }
 
+/* ── v3 · "Pitch" identity ────────────────────────────────────────────────
+   Two colours only: night (every surface, in three depths) and pitch (the one
+   accent). White is for text and knobs. Every element has a black edge and a
+   hard shadow — the knob, the track and the round button ARE the brand.
+   Pages move onto this block one by one; the tokens above retire with the
+   last old page. `static` keeps the variables available to Remotion scenes. */
+@theme static {
+  --color-night: #1b1c1f;        /* page */
+  --color-night-2: #25262a;      /* raised surface: panels, footer */
+  --color-night-3: #303136;      /* sunk surface: tracks, rows, inputs */
+  --color-pitch: #13a853;        /* the accent — actions, "on", you */
+  --color-edge: #000000;         /* outlines + hard shadows */
+  --color-mist: #d9d9de;         /* a switch that is off */
+  --color-volt: #cff23a;         /* "live / now" only — a match in play, the current GW. Sparingly. */
+  --color-alert: #ff6b5a;        /* errors only (toast icon, an expired code) — never a surface */
+
+  --font-display: "Alexandria", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-text: "IBM Plex Sans Arabic", system-ui, sans-serif;
+
+  --radius-box: 26px;
+
+  --shadow-hard-sm: 0 2px 0 0 var(--color-edge);
+  --shadow-hard: 0 4px 0 0 var(--color-edge);
+  --shadow-hard-lg: 0 6px 0 0 var(--color-edge);
+
+  --animate-fadein: fadein 0.35s ease;
+  @keyframes fadein {
+    from { opacity: 0; translate: 0 6px; }
+  }
+
+  --animate-eq: eq 0.9s ease-in-out infinite;
+  @keyframes eq {
+    0%, 100% { scale: 1 0.35; }
+    50% { scale: 1 1; }
+  }
+}
+
 /* ── Base ───────────────────────────────────────────────────────────────── */
 @layer base {
+  /* No cream flash on overscroll behind a night page */
+  body:has(.theme-night) { background: var(--color-night); }
+
   html {
     font-family: var(--font-ar);
     -webkit-tap-highlight-color: transparent;
@@ -84,10 +123,6 @@
   direction: ltr;
   unicode-bidi: isolate;
 }
-@utility hand {
-  font-family: var(--font-hand);
-  font-weight: 700;
-}
 @utility mono {
   font-family: ui-monospace, Menlo, monospace;
   direction: ltr;
@@ -128,4 +163,99 @@
 }
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── v3 kit ─────────────────────────────────────────────────────────────── */
+@utility theme-night {
+  background: var(--color-night);
+  color: #fff;
+  font-family: var(--font-text);
+  font-weight: 400;
+  & ::selection { background: var(--color-pitch); color: var(--color-edge); }
+}
+
+/* The white knob with a black edge — toggles, sliders, buttons, rank marks */
+@utility knob {
+  background: #fff;
+  border: 2px solid var(--color-edge);
+  border-radius: 9999px;
+}
+
+/* Sunk: the opposite of `press`. Things you type into sit below the surface
+   (inner shadow from the top edge); things you press stand above it. */
+@utility sunk {
+  background: var(--color-night-3);
+  border: 2px solid var(--color-edge);
+  box-shadow: inset 0 3px 0 0 rgba(0, 0, 0, 0.45);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  &:focus, &:focus-within { border-color: var(--color-pitch); box-shadow: inset 0 3px 0 0 rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(19, 168, 83, 0.25); }
+}
+
+/* Tactile press: lifts on hover, sinks into its shadow when pressed */
+@utility press {
+  box-shadow: var(--shadow-hard);
+  transition: translate 0.15s ease, box-shadow 0.15s ease;
+  @media (hover: hover) {
+    &:hover { translate: 0 -2px; box-shadow: var(--shadow-hard-lg); }
+  }
+  &:active { translate: 0 3px; box-shadow: var(--shadow-hard-sm); }
+  &:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  /* Can't press right now: already sunk, no shadow */
+  &:disabled, &[aria-disabled="true"] { translate: 0 3px; box-shadow: none; opacity: 0.45; cursor: not-allowed; }
+}
+
+/* Range slider: sunk track, pitch fill, white knob. `--fill` is set inline. */
+@layer components {
+  .kit-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 30px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .kit-range::-webkit-slider-runnable-track {
+    height: 14px;
+    border: 2px solid var(--color-edge);
+    border-radius: 9999px;
+    background: linear-gradient(to left, var(--color-pitch) var(--fill), var(--color-night-3) var(--fill));
+  }
+  .kit-range:dir(ltr)::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, var(--color-pitch) var(--fill), var(--color-night-3) var(--fill));
+  }
+  .kit-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    margin-top: -8px;
+    background: #fff;
+    border: 2px solid var(--color-edge);
+    border-radius: 9999px;
+    box-shadow: var(--shadow-hard-sm);
+    transition: scale 0.15s ease;
+  }
+  .kit-range:active::-webkit-slider-thumb { scale: 1.12; }
+  .kit-range::-moz-range-track {
+    height: 10px;
+    border: 2px solid var(--color-edge);
+    border-radius: 9999px;
+    background: var(--color-night-3);
+  }
+  .kit-range::-moz-range-progress {
+    height: 10px;
+    border: 2px solid var(--color-edge);
+    border-radius: 9999px;
+    background: var(--color-pitch);
+  }
+  .kit-range::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border: 2px solid var(--color-edge);
+    border-radius: 9999px;
+    box-shadow: var(--shadow-hard-sm);
+  }
+  .kit-range:focus-visible { outline: none; }
+  .kit-range:focus-visible::-webkit-slider-thumb { outline: 3px solid #fff; outline-offset: 2px; }
+  .kit-range:focus-visible::-moz-range-thumb { outline: 3px solid #fff; outline-offset: 2px; }
 }

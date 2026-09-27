@@ -15,6 +15,14 @@ export const gwRange = (start, end) => (start === end ? `GW ${start}` : `GW ${st
 
 export const plural = (n, one, many) => `${fmt(n)} ${Number(n) === 1 ? one : many}`;
 
+// 1 جولة واحدة · 2 جولتين · 3–10 جولات · 11+ جولة
+export const gameweeks = (n) => {
+  const v = Number(n);
+  if (v === 1) return 'جولة واحدة';
+  if (v === 2) return 'جولتين';
+  return `${fmt(v)} ${v <= 10 ? 'جولات' : 'جولة'}`;
+};
+
 export const time = (iso) =>
   iso ? new Date(iso).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' }) : '';
 

@@ -7,21 +7,24 @@ import { queryClient } from '@/lib/queryClient';
 import App from '@/App';
 import '@/styles.css';
 
-// Toasts follow the law: ink surface, cream text, no icons.
+// v3 toasts: a raised night pill with the black edge; pitch = success.
+// (Old v2 screens get them too — a dark toast reads fine on either.)
 const toastOptions = {
-  duration: 2800,
+  duration: 3000,
   style: {
-    background: '#1A1A1A',
-    color: '#F5F0E8',
-    fontFamily: 'Cairo, system-ui, sans-serif',
-    fontWeight: 700,
-    fontSize: 13.5,
+    background: '#25262a',
+    color: '#fff',
+    border: '2px solid #000',
+    boxShadow: '0 4px 0 0 #000',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
+    fontWeight: 600,
+    fontSize: 14,
     borderRadius: 999,
     padding: '10px 16px',
     direction: 'rtl',
   },
-  success: { iconTheme: { primary: '#00B5AD', secondary: '#1A1A1A' } },
-  error: { iconTheme: { primary: '#E8333A', secondary: '#1A1A1A' } },
+  success: { iconTheme: { primary: '#13a853', secondary: '#000' } },
+  error: { iconTheme: { primary: '#ff6b5a', secondary: '#000' } },
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(

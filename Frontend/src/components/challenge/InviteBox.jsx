@@ -2,18 +2,10 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { errorMessage } from '@/lib/api';
 import { inviteUrl } from '@/lib/challenge';
+import { copyText } from '@/lib/clipboard';
 import { useRotateInvite } from '@/hooks/useChallenges';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Card';
-
-export const copyText = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success('تم النسخ');
-  } catch {
-    toast.error('تعذر النسخ — انسخه يدويًا');
-  }
-};
 
 // Link + code for a private challenge. `primary` makes "copy" the screen's
 // primary button (the success screen); elsewhere it's secondary.

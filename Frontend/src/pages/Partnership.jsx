@@ -4,7 +4,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Card } from '@/components/ui/Card';
-import { copyText } from '@/components/challenge/InviteBox';
+import { copyText } from '@/lib/clipboard';
 
 const EMAIL = 'fplrush.official@gmail.com';
 

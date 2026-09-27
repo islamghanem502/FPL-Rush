@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { useMe } from '@/hooks/useAuth';
 import { NAV } from './nav';
@@ -13,10 +13,12 @@ export function Page({ className, wide = false, children }) {
   );
 }
 
-// Bottom bar on phones for signed-in users. Hidden on md+ (chrome has links).
+// Bottom bar on phones for signed-in users. Hidden on md+ (chrome has links)
+// and during onboarding (/register), where it only distracts.
 function TabBar() {
   const { data: me } = useMe();
-  if (!me) return null;
+  const { pathname } = useLocation();
+  if (!me || pathname === '/register') return null;
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 rounded-t-chrome bg-ink px-3 pb-3 pt-3 safe-bottom md:hidden">
       <div className="grid grid-cols-3 gap-2">
