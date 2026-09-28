@@ -83,6 +83,7 @@ src/
 - **الأيقونات:** `favicon.ico` (16/32/48) و`favicon.svg` و`icon-192.png` (جوجل عايز مربع من مضاعفات 48px)، و`icon-512.png` + `icon-maskable-512.png` للـ `site.webmanifest`، و`og-image.png` (1200×630) لمعاينة الروابط.
 - **`index.html`:** Open Graph + Twitter، JSON-LD (`WebSite` + `Organization` بالاسم واللوجو)، و`<noscript>` بمحتوى وروابط للزواحف.
 - **السرعة:** كل الصفحات غير الـ landing بتتحمّل عند أول زيارة (`lazy` في `App.jsx`) وبتتسخّن في الخلفية بعد أول شاشة. صورة الهاتف بتتقدّم WebP بمقاس العرض (`landing-640/960.webp`) والـ PNG الأصلية fallback.
+- **الاستضافة:** Azure Static Web Apps بتقرا `public/staticwebapp.config.json` (نفس دور `vercel.json`: كل مسار يرجّع `index.html` ما عدا الملفات، وكاش `/assets`). إعدادات البناء: App location `Frontend`، Output location `dist`. متغيرات `VITE_*` لازم تتحط في `env` بتاع خطوة البناء في GitHub Actions — مش في App settings بتاعة Azure (دي للـ runtime بس، والـ Vite بيقراها وقت البناء).
 - **بعد النشر:** Search Console ← أضف `sitemap.xml` ← فحص الرابط للصفحة الرئيسية ← طلب فهرسة. الأيقونة والعنوان بيتحدّثوا بعد إعادة الزحف.
 
 ## الحالة (state)
