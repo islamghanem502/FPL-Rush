@@ -1,21 +1,30 @@
 import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import { readImage } from '@/lib/image';
-import { fmt } from '@/lib/format';
-import { Card, Divider } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Chip, LiveChip } from '@/components/ui/Chip';
-import { Field, Input, Textarea, Select, Tile, Notice } from '@/components/ui/Field';
-import { Logo } from '@/components/ui/Misc';
+import { fmt, gameweeks, gwRange } from '@/lib/format';
+import { Panel } from '@/components/kit/Panel';
+import { Button, TextLink } from '@/components/kit/Button';
+import { Crest } from '@/components/kit/Crest';
+import { Tag } from '@/components/kit/Tag';
+import { Toggle } from '@/components/kit/Toggle';
+import { Medal } from '@/components/kit/Medal';
+import { Notice } from '@/components/kit/Feedback';
+import { ChoiceTiles } from '@/components/kit/Choice';
+import { GwPicker } from '@/components/kit/GwPicker';
+import { Field, Input, Textarea } from '@/components/kit/Field';
+import { CameraIcon, PlusIcon, TrashIcon } from '@/components/kit/icons';
 
 const LAST_GW = 38;
 const NO_RANK_LIMIT = 10_000_000;
 const SUGGESTIONS = ['تحدي الشلة', 'تحدي العمل', 'تحدي العيلة'];
 const PRIZES = [
-  ['prize', 'المركز الأول'],
-  ['prizeSecond', 'المركز الثاني'],
-  ['prizeThird', 'المركز الثالث'],
+  ['prize', 'المركز الأول', 1],
+  ['prizeSecond', 'المركز الثاني', 2],
+  ['prizeThird', 'المركز الثالث', 3],
 ];
+
+// The two steps, for the page's <Steps>.
+export const FORM_STEPS = ['الأساسيات', 'الجوائز والشروط'];
 
 const empty = (start) => ({
   title: '',
@@ -36,26 +45,48 @@ const empty = (start) => ({
 
 const gwList = (from, to) => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 
-// Step pills in the chrome — exported so the page can render them up top.
-export function Steps({ step }) {
-  const pill = (n, label) => (
-    <div
-      className={cn(
-        'flex flex-1 items-center gap-2 rounded-full px-3 py-2 text-[12.5px]',
-        step === n ? 'bg-brand font-black text-ink' : step > n ? 'bg-live font-black text-ink' : 'border-[1.5px] border-canvas/45 font-bold text-canvas',
-      )}
-    >
-      <span className="num text-[13px]">{n}</span>
-      <span>{label}</span>
-    </div>
-  );
+// The whole season as 38 cells with the chosen run lit in pitch — so the
+// start/length choice reads as a picture, not only as two numbers.
+function SeasonRange({ start, end, current }) {
   return (
-    <div className="flex items-center gap-2">
-      {pill(1, 'الأساسيات')}
-      {pill(2, 'الجوائز والشروط')}
+    <div>
+      <div className="flex items-end gap-[3px]" aria-hidden>
+        {gwList(1, LAST_GW).map((gw) => {
+          const inside = gw >= start && gw <= end;
+          return (
+            <span
+              key={gw}
+              className={cn(
+                'block min-w-0 flex-1 rounded-full transition-[background-color,height] duration-300',
+                inside ? 'h-4 bg-pitch' : 'h-2.5',
+                !inside && (current && gw < current ? 'bg-white/[.05]' : 'bg-white/12'),
+                gw === Number(current) && !inside && 'bg-volt',
+              )}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between font-display text-[11.5px] font-medium text-white/35" dir="ltr">
+        <span>GW 1</span>
+        <span>GW 38</span>
+      </div>
     </div>
   );
 }
+
+const Group = ({ title, aside, children, className }) => (
+  <Panel className={cn('flex flex-col gap-4', className)}>
+    {(title || aside) && (
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-[16px] font-bold md:text-[17px]">{title}</h2>
+        {aside}
+      </div>
+    )}
+    {children}
+  </Panel>
+);
+
+const Optional = () => <span className="text-[12.5px] text-white/40">اختياري</span>;
 
 /**
  * Two steps instead of one long form. Step 1 is enough to create a challenge.
@@ -141,101 +172,106 @@ export function ChallengeForm({ initial, minStartEvent = 1, currentGw, visibilit
   // ── Step 1 — basics ──────────────────────────────────────────────────────
   if (step === 1) {
     const starts = gwList(minStartEvent, Math.min(LAST_GW, minStartEvent + 2));
+    const startValue = customStart ? 'custom' : form.startEvent;
+    const endValue = customEnd ? 'custom' : form.endEvent === LAST_GW ? 'season' : duration === 4 || duration === 8 ? duration : null;
+
     return (
-      <div className="space-y-3">
-        <Card>
-          <Field label="اسم التحدي">
-            <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="تحدي أصدقاء العمل" maxLength={160} />
+      <div className="flex flex-col gap-4">
+        <Group>
+          <Field id="c-title" label="اسم التحدي">
+            <Input
+              id="c-title"
+              value={form.title}
+              onChange={(e) => set('title', e.target.value)}
+              placeholder="تحدي أصدقاء العمل"
+              maxLength={160}
+              className="h-14 font-display text-[18px] font-semibold"
+            />
           </Field>
           {!initial && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="-mt-1 flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => set('title', s)} className="rounded-full bg-canvas px-3 py-1.5 text-[12px] font-bold">
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => set('title', s)}
+                  className="cursor-pointer rounded-full bg-white/[.06] px-3.5 py-2 font-display text-[13px] font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+                >
                   {s}
                 </button>
               ))}
             </div>
           )}
-        </Card>
+        </Group>
 
-        <Card>
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[12.5px] font-black">التحدي يبدأ من</span>
-            {currentGw && <LiveChip>الجولة الحالية GW {currentGw}</LiveChip>}
-          </div>
-          <div className="mt-3 flex gap-2">
-            {starts.map((gw) => (
-              <Tile key={gw} label="GW" value={gw} active={!customStart && form.startEvent === gw} onClick={() => { setCustomStart(false); setStart(gw); }} />
-            ))}
-            <Tile value="جولة أخرى" active={customStart} onClick={() => setCustomStart(true)} />
-          </div>
-          {customStart && (
-            <Select className="mt-2.5" value={form.startEvent} onChange={(e) => setStart(Number(e.target.value))}>
-              {gwList(minStartEvent, LAST_GW).map((gw) => <option key={gw} value={gw}>GW {gw}</option>)}
-            </Select>
-          )}
+        <Group title="التحدي يبدأ من" aside={currentGw ? <Tag tone="live">الجولة الحالية GW {currentGw}</Tag> : null}>
+          <ChoiceTiles
+            label="جولة البداية"
+            value={startValue}
+            onChange={(v) => {
+              if (v === 'custom') return setCustomStart(true);
+              setCustomStart(false);
+              setStart(v);
+            }}
+            options={[...starts.map((gw) => ({ value: gw, top: 'GW', label: gw })), { value: 'custom', label: 'جولة تانية' }]}
+          />
+          {customStart && <GwPicker id="c-start" label="اختار جولة البداية" value={form.startEvent} min={minStartEvent} max={LAST_GW} onChange={setStart} />}
 
-          <Divider />
-          <span className="text-[12.5px] font-black">وينتهي بعد</span>
-          <div className="mt-2.5 flex gap-2">
-            {[[4, '4 جولات'], [8, '8 جولات'], ['season', 'آخر الموسم']].map(([n, label]) => {
-              const active = !customEnd && (n === 'season' ? form.endEvent === LAST_GW : duration === n && form.endEvent !== LAST_GW);
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => { setCustomEnd(false); setDuration(n); }}
-                  className={cn('flex-1 rounded-chip border py-2.5 text-[13px]', active ? 'border-ink bg-ink font-black text-brand' : 'border-line-strong bg-paper font-bold text-ink')}
-                >
-                  {label}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setCustomEnd(true)}
-              className={cn('flex-1 rounded-chip border py-2.5 text-[13px]', customEnd ? 'border-ink bg-ink font-black text-brand' : 'border-line-strong bg-paper font-bold text-ink')}
-            >
-              مخصص
-            </button>
-          </div>
-          {customEnd && (
-            <Select className="mt-2.5" value={form.endEvent} onChange={(e) => set('endEvent', Number(e.target.value))}>
-              {gwList(form.startEvent, LAST_GW).map((gw) => <option key={gw} value={gw}>GW {gw}</option>)}
-            </Select>
-          )}
-          <Notice className="mt-3.5">
-            تُحسب نقاط المشاركين من <b className="font-black">GW {form.startEvent}</b> حتى <b className="font-black">GW {form.endEvent}</b>. لا يمكن البدء من جولة انتهت.
-          </Notice>
-        </Card>
+          <div className="h-px bg-white/[.06]" />
 
-        <Card>
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[12.5px] font-black">صورة التحدي</span>
-            <span className="text-[11.5px] font-bold text-muted">اختياري</span>
+          <div className="font-display text-[16px] font-bold md:text-[17px]">وينتهي بعد</div>
+          <ChoiceTiles
+            label="مدة التحدي"
+            value={endValue}
+            onChange={(v) => {
+              if (v === 'custom') return setCustomEnd(true);
+              setCustomEnd(false);
+              setDuration(v);
+            }}
+            options={[
+              { value: 4, top: 'جولات', label: '4' },
+              { value: 8, top: 'جولات', label: '8' },
+              { value: 'season', label: 'آخر الموسم' },
+              { value: 'custom', label: 'مخصص' },
+            ]}
+          />
+          {customEnd && <GwPicker id="c-end" label="اختار جولة النهاية" value={form.endEvent} min={form.startEvent} max={LAST_GW} onChange={(v) => set('endEvent', v)} />}
+
+          <div className="rounded-[18px] bg-night p-4">
+            <SeasonRange start={form.startEvent} end={form.endEvent} current={currentGw} />
+            <p className="mt-3 text-[13.5px] leading-[1.8] text-white/65">
+              النقاط بتتحسب من <b dir="ltr" className="font-display font-bold text-white">GW {form.startEvent}</b> لحد{' '}
+              <b dir="ltr" className="font-display font-bold text-white">GW {form.endEvent}</b> — {gameweeks(duration)}. مينفعش تبدأ من جولة خلصت.
+            </p>
           </div>
-          <label className="mt-2.5 flex cursor-pointer items-center gap-3.5 rounded-chip border border-dashed border-line-strong p-4">
-            <Logo src={preview} size={52} />
-            <div className="min-w-0">
-              <div className="text-[14px] font-black">{preview ? 'تغيير الصورة' : 'اختر صورة من جهازك'}</div>
-              <div className="text-[12px] font-semibold text-muted">تتحوّل تلقائيًا لألوان FPL Rush · حتى 5MB</div>
+        </Group>
+
+        <Group title="صورة التحدي" aside={<Optional />}>
+          <label className="group flex cursor-pointer items-center gap-4 rounded-[18px] border-2 border-dashed border-white/15 p-4 transition-colors hover:border-pitch/60 hover:bg-white/[.02]">
+            <Crest src={preview} title={form.title} size={56} />
+            <div className="min-w-0 flex-1">
+              <div className="font-display text-[15px] font-bold">{preview ? 'غيّر الصورة' : 'اختار صورة من جهازك'}</div>
+              <div className="mt-0.5 text-[12.5px] text-white/50">JPG أو PNG أو WEBP · حتى 5MB</div>
             </div>
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} />
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/[.06] text-white/70 transition-colors group-hover:text-pitch">
+              <CameraIcon size={18} strokeWidth={2.2} />
+            </span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={pickImage} />
           </label>
           {preview && (
-            <Button variant="tertiary" size="sm" className="mt-1" onClick={() => { setPreview(''); setForm((f) => ({ ...f, image: '', imageData: '' })); }}>
-              إزالة الصورة
-            </Button>
+            <TextLink className="w-fit text-[13.5px]" onClick={() => { setPreview(''); setForm((f) => ({ ...f, image: '', imageData: '' })); }}>
+              شيل الصورة
+            </TextLink>
           )}
-        </Card>
+        </Group>
 
-        {error && <Notice tone="error">{error}</Notice>}
+        {error && <Notice tone="alert">{error}</Notice>}
 
-        <div className="pt-2">
-          <Button size="lg" full onClick={next}>التالي — الجوائز</Button>
+        <div className="flex flex-col gap-3 pt-1">
+          <Button size="lg" knob full onClick={next}>التالي — الجوائز</Button>
           {!initial && (
-            <Button variant="tertiary" full className="mt-2" loading={saving} onClick={() => { const p = validateStep1(); if (p) return setError(p); submit(); }}>
-              إنشاء سريع بدون جوائز
+            <Button variant="secondary" size="lg" full loading={saving} onClick={() => { const p = validateStep1(); if (p) return setError(p); submit(); }}>
+              أنشئه دلوقتي من غير جوائز
             </Button>
           )}
         </div>
@@ -245,109 +281,108 @@ export function ChallengeForm({ initial, minStartEvent = 1, currentGw, visibilit
 
   // ── Step 2 — prizes & rules (everything optional) ────────────────────────
   return (
-    <div className="space-y-3">
-      <Card tone="ink" className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[11.5px] font-bold opacity-75">تحديك</div>
-          <div className="truncate text-[17px] font-black">{form.title}</div>
+    <div className="flex flex-col gap-4">
+      <Panel className="flex items-center gap-3.5 py-4">
+        <Crest src={preview} title={form.title} size={48} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[12.5px] text-white/50">تحديك</div>
+          <div className="truncate font-display text-[17px] font-bold">{form.title}</div>
         </div>
-        <div className="shrink-0 rounded-panel bg-brand px-3 py-1.5 text-center text-ink">
-          <div className="num text-[10px] tracking-[.1em]">GW</div>
-          <div className="num text-[15px] leading-none">{form.startEvent}—{form.endEvent}</div>
-        </div>
-      </Card>
+        <span dir="ltr" className="shrink-0 rounded-full bg-pitch px-3.5 py-1.5 font-display text-[13.5px] font-extrabold text-edge">{gwRange(form.startEvent, form.endEvent)}</span>
+      </Panel>
 
-      <Card>
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[16px] font-black">الجوائز</span>
-          <span className="text-[11.5px] font-bold text-muted">اختياري</span>
-        </div>
-        <p className="mt-0.5 text-[12.5px] font-semibold text-muted">اختر المراكز التي تريد تكريمها واكتب الجائزة.</p>
-        <div className="mt-3.5 space-y-2">
-          {PRIZES.map(([key, label]) => {
+      <Group title="الجوائز" aside={<Optional />}>
+        <p className="-mt-2 text-[13.5px] text-white/55">شغّل المراكز اللي عايز تكرّمها واكتب الجائزة.</p>
+        <div className="flex flex-col gap-2.5">
+          {PRIZES.map(([key, label, rank]) => {
             const enabled = enabledPrizes.includes(key);
             return (
-              <div key={key}>
-                <button
-                  type="button"
-                  onClick={() => togglePrize(key)}
-                  className="flex w-full items-center gap-3 rounded-chip border border-line-strong bg-paper px-3.5 py-3 text-right"
-                >
-                  <span className={cn('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px]', enabled ? 'bg-ink' : 'border-2 border-ink')}>
-                    {enabled && <span className="block h-2.5 w-2.5 rounded-[2px] bg-brand" />}
-                  </span>
-                  <span className={cn('text-[14.5px]', enabled ? 'font-black' : 'font-bold')}>{label}</span>
-                </button>
+              <div key={key} className={cn('rounded-[18px] p-3 transition-colors', enabled ? 'bg-white/[.05]' : 'bg-transparent ring-1 ring-inset ring-white/[.06]')}>
+                <div className="flex items-center gap-3">
+                  <Medal rank={rank} size={30} />
+                  <label htmlFor={`prize-${key}`} className="flex-1 cursor-pointer font-display text-[15px] font-semibold">{label}</label>
+                  <Toggle id={`prize-${key}`} checked={enabled} onChange={() => togglePrize(key)} label={`جائزة ${label}`} />
+                </div>
                 {enabled && (
-                  <Input className="mt-2" value={form[key] || ''} onChange={(e) => set(key, e.target.value)} placeholder="تيشيرت فريقك المفضل" maxLength={300} />
+                  <Input className="mt-3 animate-fadein" value={form[key] || ''} onChange={(e) => set(key, e.target.value)} placeholder="تيشيرت فريقك المفضل" maxLength={300} aria-label={`جائزة ${label}`} />
                 )}
               </div>
             );
           })}
         </div>
-      </Card>
+      </Group>
 
-      <Card>
-        <Field label="كلمة للمشاركين" optional>
-          <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="ظبط تشكيلتك وتعالى نشوف مين الأحسن…" maxLength={5000} />
-        </Field>
-        <div className="mt-2 flex items-center justify-between">
-          <button type="button" disabled={links.length >= 10} className="text-[12.5px] font-bold disabled:opacity-40" onClick={() => set('descriptionLinks', [...links, { label: '', url: '' }])}>
-            + إضافة رابط
-          </button>
-          <span className="mono text-[11px] text-muted">{fmt(form.description.length)} / 5000</span>
+      <Group title="كلمة للمشاركين" aside={<Optional />}>
+        <div>
+          <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="ظبط تشكيلتك وتعالى نشوف مين الأحسن…" maxLength={5000} aria-label="كلمة للمشاركين" />
+          <div className="mt-2 flex justify-end">
+            <span dir="ltr" className="text-[12px] tabular-nums text-white/35">{fmt(form.description.length)} / 5000</span>
+          </div>
         </div>
         {links.map((link, i) => (
-          <div key={i} className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={link.label} onChange={(e) => setLink(i, 'label', e.target.value)} placeholder="اسم الرابط" maxLength={100} />
-              <Input dir="ltr" inputMode="url" value={link.url} onChange={(e) => setLink(i, 'url', e.target.value)} placeholder="https://" maxLength={2048} />
+          <div key={i} className="flex items-start gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] min-w-0 flex-1 gap-2 sm:grid-cols-2">
+              <Input value={link.label} onChange={(e) => setLink(i, 'label', e.target.value)} placeholder="اسم الرابط" maxLength={100} aria-label="اسم الرابط" />
+              <Input dir="ltr" inputMode="url" value={link.url} onChange={(e) => setLink(i, 'url', e.target.value)} placeholder="https://" maxLength={2048} aria-label="عنوان الرابط" />
             </div>
-            <Button variant="tertiary" size="sm" onClick={() => set('descriptionLinks', links.filter((_, j) => j !== i))}>حذف</Button>
+            <button
+              type="button"
+              aria-label="احذف الرابط"
+              onClick={() => set('descriptionLinks', links.filter((_, j) => j !== i))}
+              className="press grid size-13 shrink-0 cursor-pointer place-items-center rounded-full border-2 border-edge bg-night-3 text-white/70 hover:text-alert"
+            >
+              <TrashIcon size={17} />
+            </button>
           </div>
         ))}
-      </Card>
+        <button
+          type="button"
+          disabled={links.length >= 10}
+          onClick={() => set('descriptionLinks', [...links, { label: '', url: '' }])}
+          className="inline-flex w-fit cursor-pointer items-center gap-2 font-display text-[14px] font-semibold text-white/80 transition-colors hover:text-pitch disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <PlusIcon size={16} />
+          ضيف رابط
+        </button>
+      </Group>
 
-      <Card>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[14.5px] font-black">شروط الانضمام</div>
-            <div className="text-[12.5px] font-semibold text-muted">{showRules ? 'حدد من يستطيع الانضمام' : 'مفتوح للجميع — مناسب لمعظم التحديات'}</div>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => setShowRules((v) => !v)}>{showRules ? 'إخفاء' : 'تعديل'}</Button>
-        </div>
+      <Group
+        title="شروط الانضمام"
+        aside={<Button variant="secondary" size="sm" onClick={() => setShowRules((v) => !v)}>{showRules ? 'إخفاء' : 'تعديل'}</Button>}
+      >
+        <p className="-mt-2 text-[13.5px] text-white/55">{showRules ? 'حدد مين يقدر ينضم' : 'مفتوح للكل — مناسب لمعظم التحديات'}</p>
         {showRules ? (
-          <div className="mt-3.5 grid gap-3 sm:grid-cols-3">
-            <Field label="أقل إجمالي نقاط">
-              <Input type="number" inputMode="numeric" min={0} value={form.minTotalPoints} onChange={(e) => set('minTotalPoints', e.target.value)} />
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-3">
+            <Field id="r-points" label="أقل إجمالي نقاط">
+              <Input id="r-points" type="number" inputMode="numeric" dir="ltr" min={0} value={form.minTotalPoints} onChange={(e) => set('minTotalPoints', e.target.value)} />
             </Field>
-            <Field label="أقصى ترتيب عام">
-              <Input type="number" inputMode="numeric" min={1} value={form.maxOverallRank} onChange={(e) => set('maxOverallRank', e.target.value)} />
+            <Field id="r-rank" label="أقصى ترتيب عام">
+              <Input id="r-rank" type="number" inputMode="numeric" dir="ltr" min={1} value={form.maxOverallRank} onChange={(e) => set('maxOverallRank', e.target.value)} />
             </Field>
-            <Field label="بدأ FPL قبل جولة">
-              <Input type="number" inputMode="numeric" min={1} max={LAST_GW} value={form.latestStartedEvent} onChange={(e) => set('latestStartedEvent', e.target.value)} />
+            <Field id="r-started" label="بدأ FPL قبل جولة">
+              <Input id="r-started" type="number" inputMode="numeric" dir="ltr" min={1} max={LAST_GW} value={form.latestStartedEvent} onChange={(e) => set('latestStartedEvent', e.target.value)} />
             </Field>
             {visibility === 'public' && (
-              <Field label="رابط صورة الخلفية" optional className="sm:col-span-3">
-                <Input dir="ltr" inputMode="url" value={form.backgroundImage} onChange={(e) => set('backgroundImage', e.target.value)} placeholder="https://" />
+              <Field id="r-bg" label="رابط صورة الخلفية" aside={<Optional />} className="sm:col-span-3">
+                <Input id="r-bg" dir="ltr" inputMode="url" value={form.backgroundImage} onChange={(e) => set('backgroundImage', e.target.value)} placeholder="https://" />
               </Field>
             )}
           </div>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <Chip variant="cream">{form.minTotalPoints > 0 ? `+${fmt(form.minTotalPoints)} نقطة` : 'بدون حد أدنى للنقاط'}</Chip>
-            <Chip variant="cream">{form.maxOverallRank < NO_RANK_LIMIT ? `ترتيب حتى #${fmt(form.maxOverallRank)}` : 'أي ترتيب عام'}</Chip>
-            <Chip variant="cream">الانضمام حتى GW {form.endEvent}</Chip>
+          <div className="flex flex-wrap gap-2">
+            <Tag>{form.minTotalPoints > 0 ? `+${fmt(form.minTotalPoints)} نقطة` : 'بدون حد أدنى للنقاط'}</Tag>
+            <Tag>{form.maxOverallRank < NO_RANK_LIMIT ? `ترتيب حتى #${fmt(form.maxOverallRank)}` : 'أي ترتيب عام'}</Tag>
+            <Tag>الانضمام حتى GW {form.endEvent}</Tag>
           </div>
         )}
-      </Card>
+      </Group>
 
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="alert">{error}</Notice>}
 
-      <div className="pt-2">
-        <Button size="lg" full loading={saving} onClick={() => submit()}>{submitLabel}</Button>
-        <Button variant="tertiary" full className="mt-2" onClick={() => { onStep(1); window.scrollTo({ top: 0 }); }}>رجوع للأساسيات</Button>
-        {visibility === 'private' && <p className="mt-3 text-center text-[12.5px] font-semibold text-muted">التحدي خاص — يظهر فقط لمن يملك الرابط</p>}
+      <div className="flex flex-col items-center gap-4 pt-1">
+        <Button size="lg" knob full loading={saving} onClick={() => submit()}>{submitLabel}</Button>
+        <TextLink onClick={() => { onStep(1); window.scrollTo({ top: 0 }); }}>رجوع للأساسيات</TextLink>
+        {visibility === 'private' && <p className="text-center text-[13px] text-white/45">التحدي خاص — بيظهر بس للي معاه الرابط</p>}
       </div>
     </div>
   );

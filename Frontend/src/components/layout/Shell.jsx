@@ -1,37 +1,43 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { useMe } from '@/hooks/useAuth';
-import { NAV } from './nav';
+import { NAV, activeNav } from './nav';
 
-// Page content column: one column, phone-first, comfortable on desktop.
-export function Page({ className, wide = false, children }) {
-  const { data: me } = useMe();
-  return (
-    <main className={cn('mx-auto w-full max-w-[600px] px-5 pt-4 md:pb-12', me ? 'pb-28' : 'pb-10', wide && 'md:max-w-[960px]', className)}>
-      {children}
-    </main>
-  );
-}
-
-// Bottom bar on phones for signed-in users. Hidden on md+ (chrome has links)
-// and during onboarding (/register), where it only distracts.
+// Phones, signed in: a floating switch at the bottom — the chosen place is
+// the raised pitch pill, and it slides between tabs like the kit's
+// Segmented. Hidden on md+ (the app bar carries the links) and during
+// onboarding (/register), where it would only distract.
 function TabBar() {
   const { data: me } = useMe();
   const { pathname } = useLocation();
   if (!me || pathname === '/register') return null;
+
+  const active = activeNav(pathname);
+  const share = `((100% - 12px) / ${NAV.length})`;
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 rounded-t-chrome bg-ink px-3 pb-3 pt-3 safe-bottom md:hidden">
-      <div className="grid grid-cols-3 gap-2">
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              cn('rounded-full py-2.5 text-center text-[13px]', isActive ? 'bg-brand font-black text-ink' : 'font-bold text-canvas')
-            }
+    <nav aria-label="التنقل" className="fixed inset-x-3 z-40 md:hidden" style={{ bottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+      <div className="relative grid rounded-full border-2 border-edge bg-night-2 p-1.5 shadow-hard" style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}>
+        {active >= 0 && (
+          <span
+            className="absolute inset-y-1.5 rounded-full border-2 border-edge bg-pitch transition-[inset-inline-start] duration-300 ease-[cubic-bezier(.34,1.56,.64,1)]"
+            style={{ insetInlineStart: `calc(6px + ${active} * ${share})`, width: `calc${share}` }}
+            aria-hidden
+          />
+        )}
+        {NAV.map(({ to, label, icon: Icon }, i) => (
+          <Link
+            key={to}
+            to={to}
+            aria-current={i === active ? 'page' : undefined}
+            className={cn(
+              'relative z-10 flex h-[52px] flex-col items-center justify-center gap-1 rounded-full font-display text-[11.5px] font-semibold leading-none transition-colors duration-200',
+              i === active ? 'text-edge' : 'text-white/60 active:text-white',
+            )}
           >
-            {item.label}
-          </NavLink>
+            <Icon size={19} strokeWidth={i === active ? 2.8 : 2.4} />
+            {label}
+          </Link>
         ))}
       </div>
     </nav>
@@ -40,7 +46,7 @@ function TabBar() {
 
 export function Shell() {
   return (
-    <div className="min-h-dvh bg-canvas overflow-x-hidden">
+    <div className="min-h-dvh overflow-x-clip bg-night">
       <Outlet />
       <TabBar />
     </div>

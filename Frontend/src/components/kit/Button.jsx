@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { ArrowIcon } from './icons';
 
+// Web links open in a new tab; mailto:/tel: stay in place.
+const external = (href) => (/^(mailto|tel):/.test(href) ? {} : { target: '_blank', rel: 'noreferrer' });
+
 // Every button is a tactile pill: black edge, hard shadow, sinks when pressed.
 // `primary` is pitch with black text; `secondary` is a sunk night surface.
 // `knob` adds the white knob with a forward arrow — it slides on hover like a
@@ -47,7 +50,7 @@ export function Button({ variant = 'primary', size = 'md', knob = false, full = 
   );
 
   if (to) return <Link to={to} className={classes} {...props}>{body}</Link>;
-  if (href) return <a href={href} target="_blank" rel="noreferrer" className={classes} {...props}>{body}</a>;
+  if (href) return <a href={href} {...external(href)} className={classes} {...props}>{body}</a>;
   return <button type="button" disabled={inactive} className={classes} {...props}>{body}</button>;
 }
 
@@ -60,7 +63,7 @@ export function TextLink({ to, href, onClick, className, children }) {
     className,
   );
   if (to) return <Link to={to} className={classes}>{children}</Link>;
-  if (href) return <a href={href} target="_blank" rel="noreferrer" className={classes}>{children}</a>;
+  if (href) return <a href={href} {...external(href)} className={classes}>{children}</a>;
   return <button type="button" onClick={onClick} className={classes}>{children}</button>;
 }
 

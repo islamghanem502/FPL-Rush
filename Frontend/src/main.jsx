@@ -7,8 +7,7 @@ import { queryClient } from '@/lib/queryClient';
 import App from '@/App';
 import '@/styles.css';
 
-// v3 toasts: a raised night pill with the black edge; pitch = success.
-// (Old v2 screens get them too — a dark toast reads fine on either.)
+// Toasts: a raised night pill with the black edge; pitch = success.
 const toastOptions = {
   duration: 3000,
   style: {
