@@ -10,6 +10,7 @@ import { useArmed } from '@/hooks/useArmed';
 import { useCurrentGw } from '@/hooks/useBonus';
 import { useChallenge, useEnroll, useInvite, useStandings } from '@/hooks/useChallenges';
 import { AppPage } from '@/components/layout/AppPage';
+import { usePageTitle } from '@/components/layout/RouteSeo';
 import { Avatar } from '@/components/kit/Avatar';
 import { Button, TextLink } from '@/components/kit/Button';
 import { Crest } from '@/components/kit/Crest';
@@ -315,6 +316,7 @@ export default function ChallengeDetails() {
   const { data: gw } = useCurrentGw();
   const { data: challenge, isPending, isError } = useChallenge(id);
   const { data: standings = [], isPending: standingsPending, isFetching: standingsFetching } = useStandings(id, challenge?.status);
+  usePageTitle(challenge?.title);
 
   if (isPending) return <AppPage back="/challenges"><PageLoader label="جارٍ فتح التحدي…" /></AppPage>;
   if (isError || !challenge) {

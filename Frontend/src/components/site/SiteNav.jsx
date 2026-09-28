@@ -6,7 +6,7 @@ import { Wordmark } from './Wordmark';
 
 // Sticky site nav. Links are plain text (not tactile) so they never compete
 // with buttons. `links`: { label, to } for routes, { label, onClick } for
-// in-page jumps — HashRouter owns the URL hash, so no href="#section".
+// in-page jumps (smooth scroll, no URL change).
 // `actions` sit at the end on every size; `menuAction` joins the phone menu.
 // `active: true` marks the page you are on. `animate` flips the logo on once.
 export function SiteNav({ links = [], actions, menuAction, animate = false }) {

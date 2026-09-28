@@ -71,7 +71,9 @@ export const prizes = (challenge) =>
     ['المركز الثالث', challenge?.prizeThird],
   ].filter(([, value]) => value);
 
-export const inviteUrl = (invite) => (invite?.inviteUrl ? `${window.location.origin}/${invite.inviteUrl.replace(/^\//, '')}` : '');
+// The backend still answers "/#/join/CODE"; hand out the clean /join/CODE
+// (old hash links keep working — see main.jsx).
+export const inviteUrl = (invite) => (invite?.inviteUrl ? `${window.location.origin}/${invite.inviteUrl.replace(/^\/?(#\/)?/, '')}` : '');
 
 export const FPL_TEAM_URL = 'https://fantasy.premierleague.com/my-team';
 export const WHATSAPP_SUPPORT = 'https://wa.me/201094474067';

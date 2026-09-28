@@ -7,6 +7,7 @@ import { useMe } from '@/hooks/useAuth';
 import { useCurrentGw } from '@/hooks/useBonus';
 import { useEnrollWithInvite, useInvitePreview } from '@/hooks/useChallenges';
 import { AppPage } from '@/components/layout/AppPage';
+import { usePageTitle } from '@/components/layout/RouteSeo';
 import { Button } from '@/components/kit/Button';
 import { Crest } from '@/components/kit/Crest';
 import { Empty, PageLoader } from '@/components/kit/Feedback';
@@ -26,6 +27,7 @@ export default function JoinInvite() {
   const { data: gw } = useCurrentGw();
   const { data: challenge, isPending, isError } = useInvitePreview(inviteCode);
   const join = useEnrollWithInvite();
+  usePageTitle(challenge?.title && `دعوة: ${challenge.title}`);
 
   if (isPending) return <AppPage back="/challenges" narrow><PageLoader label="بنفحص رابط الدعوة…" /></AppPage>;
   if (isError || !challenge) {

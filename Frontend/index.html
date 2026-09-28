@@ -10,7 +10,8 @@
       name="description"
       content="كل جولة زي أول جولة — تحديات فانتازي البريميرليج بجولات محددة والكل بيبدأ من صفر. اربط فريقك، ادخل تحدي عام أو اعمل تحدي لأصحابك، وتابع الترتيب مباشر."
     />
-    <link rel="canonical" href="https://www.fplrush.app/" />
+    <!-- Canonical URL and robots are set per route at runtime (src/lib/seo.js) -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="application-name" content="FPL Rush" />
     <meta name="apple-mobile-web-app-title" content="FPL Rush" />
 
@@ -26,7 +27,6 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="FPL Rush" />
     <meta property="og:locale" content="ar_EG" />
-    <meta property="og:url" content="https://www.fplrush.app/" />
     <meta property="og:title" content="FPL Rush — جمعت كام نقطة؟" />
     <meta property="og:description" content="تحديات فانتازي البريميرليج بجولات محددة والكل بيبدأ من صفر. اربط فريقك وادخل التحدي." />
     <meta property="og:image" content="https://www.fplrush.app/og-image.png" />
@@ -71,6 +71,19 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- For crawlers and browsers without JavaScript -->
+    <noscript>
+      <main style="max-width:640px;margin:0 auto;padding:40px 16px;font-family:system-ui,sans-serif;color:#fff;background:#1b1c1f">
+        <h1>FPL Rush — جمعت كام نقطة؟</h1>
+        <p>كل جولة زي أول جولة: تحديات فانتازي البريميرليج بجولات محددة والكل بيبدأ من صفر. اربط فريقك من FPL، ادخل تحدي عام أو اعمل تحدي لأصحابك، وتابع الترتيب مباشر.</p>
+        <p>
+          <a href="/register" style="color:#13a853">اعمل حسابك</a> ·
+          <a href="/bonus" style="color:#13a853">بونص اللاعبين</a> ·
+          <a href="/partnership" style="color:#13a853">الشراكات</a>
+        </p>
+        <p>الموقع محتاج JavaScript عشان يشتغل.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
