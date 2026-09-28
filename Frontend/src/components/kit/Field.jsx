@@ -20,7 +20,14 @@ export function Field({ id, label, hint, aside, className, children }) {
 
 export const Input = ({ className, ...props }) => (
   <input
-    className={cn('sunk h-13 w-full rounded-[16px] px-4 text-[16px] text-white outline-none placeholder:text-white/30', className)}
+    className={cn('sunk h-13 w-full rounded-[16px] px-4 text-[16px] text-white outline-none placeholder:text-white/30 disabled:cursor-not-allowed disabled:text-white/45', className)}
+    {...props}
+  />
+);
+
+export const Textarea = ({ className, ...props }) => (
+  <textarea
+    className={cn('sunk min-h-[120px] w-full resize-y rounded-[16px] px-4 py-3.5 text-[16px] leading-[1.75] text-white outline-none placeholder:text-white/30', className)}
     {...props}
   />
 );

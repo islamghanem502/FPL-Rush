@@ -1,4 +1,4 @@
-// Numbers are always latin digits (Archivo) — never Arabic-Indic.
+// Numbers are always latin digits (tabular, in the display face) — never Arabic-Indic.
 export const fmt = (n) => (n === null || n === undefined || n === '' ? '—' : Number(n).toLocaleString('en-US'));
 
 export const fmtRank = (n) => (n ? `#${fmt(n)}` : '—');

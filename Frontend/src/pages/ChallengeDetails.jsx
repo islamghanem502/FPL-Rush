@@ -1,39 +1,40 @@
-import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/api';
 import { fmt, gwRange } from '@/lib/format';
 import { challengeState, eligibility, prizes, FPL_TEAM_URL } from '@/lib/challenge';
+import { copyText } from '@/lib/clipboard';
 import { useMe } from '@/hooks/useAuth';
+import { useArmed } from '@/hooks/useArmed';
 import { useCurrentGw } from '@/hooks/useBonus';
 import { useChallenge, useEnroll, useInvite, useStandings } from '@/hooks/useChallenges';
-import { Chrome } from '@/components/layout/Chrome';
-import { Page } from '@/components/layout/Shell';
-import { Button } from '@/components/ui/Button';
-import { Chip, LiveChip } from '@/components/ui/Chip';
-import { Card, Divider, SectionTitle } from '@/components/ui/Card';
-import { Notice } from '@/components/ui/Field';
-import { RankTile } from '@/components/ui/Numbers';
-import { Avatar, Empty, Loading, Logo, PrizeRow } from '@/components/ui/Misc';
-import { StateChip } from '@/components/challenge/ChallengeCard';
+import { AppPage } from '@/components/layout/AppPage';
+import { Avatar } from '@/components/kit/Avatar';
+import { Button, TextLink } from '@/components/kit/Button';
+import { Crest } from '@/components/kit/Crest';
+import { Empty, Loader, Notice, PageLoader } from '@/components/kit/Feedback';
+import { GwTrack, trackStatus } from '@/components/kit/GwTrack';
+import { SectionHead } from '@/components/kit/Heading';
+import { Panel } from '@/components/kit/Panel';
+import { Tag } from '@/components/kit/Tag';
+import { EditIcon, ExternalIcon, LockIcon, ShareIcon, UsersIcon } from '@/components/kit/icons';
+import { EmptyNet } from '@/components/art/EmptyNet';
+import { VarScreen } from '@/components/art/VarScreen';
+import { StateTag } from '@/components/challenge/ChallengeCard';
 import { Standings, rankOf } from '@/components/challenge/Standings';
 import { Podium } from '@/components/challenge/Podium';
 import { InviteBox } from '@/components/challenge/InviteBox';
-import { copyText } from '@/lib/clipboard';
 import { OwnerMode } from '@/components/challenge/OwnerMode';
+import { Eligibility, PrizeList } from '@/components/challenge/Parts';
 
 // Joining locks your baseline — ask for a second tap instead of a modal.
+// While armed, a bar drains to show how long the second tap stays open.
 function JoinButton({ challenge, eligible }) {
   const enroll = useEnroll();
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return undefined;
-    const t = setTimeout(() => setArmed(false), 4000);
-    return () => clearTimeout(t);
-  }, [armed]);
+  const [armed, setArmed] = useArmed();
 
-  if (!eligible) return <Button size="lg" full disabled>لا تطابق شروط الانضمام</Button>;
+  if (!eligible) return <Button size="lg" full disabled>فريقك مش مطابق للشروط</Button>;
 
   const join = () => {
     if (!armed) return setArmed(true);
@@ -44,70 +45,98 @@ function JoinButton({ challenge, eligible }) {
   };
   return (
     <div>
-      <Button size="lg" full loading={enroll.isPending} onClick={join}>{armed ? 'اضغط تاني للتأكيد' : 'انضم للتحدي'}</Button>
-      {armed && <p className="mt-2 text-center text-[12px] font-semibold text-muted">النقاط تُحسب من هذه الجولة ولا يمكن التراجع بعد الانضمام.</p>}
+      <Button size="lg" knob full loading={enroll.isPending} onClick={join}>{armed ? 'اضغط تاني للتأكيد' : 'انضم للتحدي'}</Button>
+      {armed && (
+        <div className="mt-3 animate-fadein">
+          <span className="block h-1 overflow-hidden rounded-full bg-white/10">
+            <span className="block h-full origin-right animate-drain rounded-full bg-pitch" />
+          </span>
+          <p className="mt-2.5 text-center text-[13px] leading-relaxed text-white/60">النقاط بتتحسب من الجولة دي، ومفيش رجوع بعد الانضمام.</p>
+        </div>
+      )}
     </div>
   );
 }
 
-function Hero({ challenge, state }) {
-  const prizeList = prizes(challenge);
+function Hero({ challenge, state, gw }) {
+  const hasBanner = Boolean(challenge.backgroundImage);
+  const hasBody = challenge.description || challenge.descriptionLinks?.length > 0 || prizes(challenge).length > 0;
   return (
-    <Card className="overflow-hidden rounded-[24px] p-0">
-      {challenge.backgroundImage && (
-        <div className="duotone h-28"><img src={challenge.backgroundImage} alt="" /></div>
+    <section className="overflow-hidden rounded-box bg-night-2 ring-1 ring-white/[.06]">
+      {hasBanner && (
+        <div className="duotone-pitch h-32 md:h-44"><img src={challenge.backgroundImage} alt="" /></div>
       )}
-      <div className="p-4">
-        <div className="flex items-center gap-3">
-          <Logo src={challenge.image} size={54} className="rounded-2xl" />
-          <div className="min-w-0">
-            <h1 className="text-[22px] font-black leading-tight">{challenge.title}</h1>
-            <div className="mt-0.5 text-[13px] font-semibold text-muted">
-              <span className="num font-bold">{gwRange(challenge.startEvent, challenge.endEvent)}</span> · {fmt(challenge.participantCount || 0)} مشارك
+      <div className="p-5 md:p-7">
+        <div className="flex items-start gap-4">
+          <Crest src={challenge.image} title={challenge.title} size={68} className={cn('relative', hasBanner && '-mt-12 md:-mt-14')} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap gap-1.5">
+              <StateTag state={state} startEvent={challenge.startEvent} />
+              {challenge.visibility === 'private' && <Tag tone="ghost" icon={<LockIcon size={12} strokeWidth={2.8} />}>خاص · بالرابط بس</Tag>}
+              {challenge.isOwner && <Tag tone="pitch">تحديك</Tag>}
+            </div>
+            <h1 className="mt-2.5 font-display text-[24px] font-extrabold leading-snug md:text-[34px]">{challenge.title}</h1>
+            <div className="mt-1.5 flex items-center gap-1.5 text-[13.5px] text-white/55">
+              <UsersIcon size={15} strokeWidth={2.2} />
+              {fmt(challenge.participantCount || 0)} مشارك
             </div>
           </div>
         </div>
-        <div className="mt-3.5 flex flex-wrap gap-1.5">
-          <StateChip state={state} startEvent={challenge.startEvent} />
-          {challenge.visibility === 'private' && <Chip variant="outline">خاص · بالرابط فقط</Chip>}
-          {challenge.isOwner && <Chip variant="brand">تحديك</Chip>}
-        </div>
-        {(challenge.description || challenge.descriptionLinks?.length > 0 || prizeList.length > 0) && <Divider />}
-        {challenge.description && <p className="whitespace-pre-line text-[15px] font-semibold leading-[1.8]">{challenge.description}</p>}
-        {challenge.descriptionLinks?.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {challenge.descriptionLinks.map((link, i) => (
-              <a key={i} href={link.url} target="_blank" rel="noreferrer" className="rounded-full border-2 border-ink px-3.5 py-1.5 text-[12.5px] font-extrabold">
-                {link.label || link.url} ↗
-              </a>
-            ))}
+
+        <div className="mt-5 rounded-[18px] bg-night p-4">
+          <div className="mb-3 flex items-center justify-between gap-3 text-[13px]">
+            <span className="text-white/80">{trackStatus({ start: challenge.startEvent, end: challenge.endEvent, current: gw })}</span>
+            <span dir="ltr" className="font-display font-semibold text-white/45">{gwRange(challenge.startEvent, challenge.endEvent)}</span>
           </div>
-        )}
-        {prizeList.length > 0 && (
-          <div className={cn('space-y-2', (challenge.description || challenge.descriptionLinks?.length) && 'mt-4')}>
-            {prizeList.map(([place, prize]) => <PrizeRow key={place} place={place} prize={prize} />)}
+          <GwTrack start={challenge.startEvent} end={challenge.endEvent} current={gw} labels={false} />
+        </div>
+
+        {hasBody && (
+          <div className="mt-5 flex flex-col gap-4 border-t border-white/[.06] pt-5">
+            {challenge.description && <p className="whitespace-pre-line text-[15px] leading-[1.9] text-white/80">{challenge.description}</p>}
+            {challenge.descriptionLinks?.length > 0 && (
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {challenge.descriptionLinks.map((link, i) => (
+                  <TextLink key={i} href={link.url} className="inline-flex items-center gap-1.5">
+                    {link.label || link.url}
+                    <ExternalIcon size={14} />
+                  </TextLink>
+                ))}
+              </div>
+            )}
+            <PrizeList challenge={challenge} />
           </div>
         )}
       </div>
-    </Card>
+    </section>
   );
 }
 
+// You, in the race: your patch of pitch with your rank and points.
 function MyPosition({ entry, rank, total, started }) {
   return (
-    <div className="mt-3.5 flex items-center justify-between gap-3 rounded-[22px] bg-ink px-4 py-3.5 text-canvas">
-      <div className="flex min-w-0 items-center gap-3">
-        <Avatar user={entry} size={44} className="ring-2 ring-brand" />
+    <section className="mowed relative overflow-hidden rounded-box border-2 border-edge p-5 text-edge" style={{ '--band': '40px' }}>
+      <div className="flex items-center gap-3">
+        <Avatar user={entry} size={48} light />
         <div className="min-w-0">
-          <div className="text-[11.5px] font-bold text-live">أنت في المنافسة</div>
-          <div className="jersey truncate text-right text-[22px] leading-tight text-brand">{entry.teamName}</div>
+          <div className="font-display text-[12.5px] font-semibold text-edge/65">أنت في المنافسة</div>
+          <div className="truncate text-right font-display text-[19px] font-extrabold" dir="auto">{entry.teamName}</div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <RankTile value={started ? rank : '—'} sub={`من ${fmt(total)}`} />
-        <RankTile tone="outlineDark" value={started ? entry.challengePoints ?? 0 : '—'} sub="نقطة" />
-      </div>
-    </div>
+      <dl className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-[16px] bg-edge/[.08] px-4 py-3">
+          <dt className="text-[12px] text-edge/65">ترتيبك</dt>
+          <dd className="mt-0.5 flex items-baseline gap-1.5">
+            <span dir="ltr" className="font-display text-[30px] font-extrabold leading-none tabular-nums">{started ? `#${rank}` : '—'}</span>
+            <span className="text-[12.5px] text-edge/60">من {fmt(total)}</span>
+          </dd>
+        </div>
+        <div className="rounded-[16px] bg-edge/[.08] px-4 py-3">
+          <dt className="text-[12px] text-edge/65">نقاطك</dt>
+          <dd dir="ltr" className="mt-0.5 text-right font-display text-[30px] font-extrabold leading-none tabular-nums">{started ? fmt(entry.challengePoints ?? 0) : '—'}</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -117,20 +146,24 @@ function OwnerPanel({ challenge, gw }) {
   const canEdit = challenge.status === 'active' && beforeStart && !(challenge.participantCount > 0);
   const lockedMode = challenge.status !== 'active' || (gw && Number(gw) > Number(challenge.startEvent));
   return (
-    <Card className="mt-3.5 space-y-4">
+    <Panel className="flex flex-col gap-5">
       <InviteBox challenge={challenge} invite={invite} />
+      <div className="h-px bg-white/[.06]" />
       <OwnerMode challenge={challenge} locked={lockedMode} />
       {canEdit && (
-        <div className="flex justify-center gap-2 border-t border-line pt-3">
-          <Button variant="tertiary" size="sm" to={`/challenges/${challenge._id}/edit`}>تعديل التحدي</Button>
+        <div className="flex justify-center border-t border-white/[.06] pt-4">
+          <TextLink to={`/challenges/${challenge._id}/edit`} className="inline-flex items-center gap-2">
+            <EditIcon size={15} />
+            عدّل التحدي
+          </TextLink>
         </div>
       )}
-    </Card>
+    </Panel>
   );
 }
 
 // ── Live / upcoming / closing ────────────────────────────────────────────────
-function LiveView({ challenge, standings, standingsPending, me, gw }) {
+function LiveView({ challenge, standings, standingsPending, standingsFetching, me, gw }) {
   const state = challengeState(challenge, gw);
   const started = state !== 'upcoming';
   const meIndex = standings.findIndex((s) => s.userId === String(me?._id));
@@ -138,53 +171,85 @@ function LiveView({ challenge, standings, standingsPending, me, gw }) {
   const checks = eligibility(me, challenge);
   const eligible = checks.every((c) => c.ok);
   const canJoinHere = !challenge.isJoined && challenge.visibility === 'public' && challenge.status === 'active';
+  const inviteOnly = !challenge.isJoined && challenge.visibility === 'private' && !challenge.isOwner;
+  const owner = challenge.isOwner && challenge.visibility === 'private';
+  const lineup = challenge.isJoined && state === 'live';
+  const side = mine || canJoinHere || inviteOnly || owner || lineup;
 
   return (
-    <>
-      <Chrome back="/challenges" title="التحدي" />
-      <Page>
-        <Hero challenge={challenge} state={state} />
-
-        {mine && <MyPosition entry={mine.entry} rank={mine.rank} total={standings.length} started={started && state !== 'closing'} />}
+    <AppPage back="/challenges">
+      {/* One grid: phones read hero → your cards → table; desktop puts your
+          cards in a sticky column beside the hero and the table. */}
+      <div className={cn('grid grid-cols-[minmax(0,1fr)] items-start gap-6 md:gap-8', side && 'md:grid-cols-[minmax(0,1fr)_minmax(0,380px)]')}>
+        <div className="min-w-0 md:col-start-1">
+          <Hero challenge={challenge} state={state} gw={gw} />
+        </div>
 
         {state === 'closing' && (
-          <Notice className="mt-3.5">جارٍ تثبيت النتائج النهائية — الفائزون يُعلنون بعد ما يؤكد FPL اكتمال الجولة والبونص.</Notice>
-        )}
-
-        {canJoinHere && (
-          <Card className="mt-3.5">
-            <SectionTitle aside={eligible ? <Chip variant="live">مطابق</Chip> : null}>شروط الانضمام</SectionTitle>
-            <div className="grid grid-cols-2 gap-2">
-              {checks.map((c) => (
-                <div key={c.key} className={cn('rounded-panel border px-3 py-2.5', c.ok ? 'border-line-strong' : 'border-action')}>
-                  <div className="text-[11px] font-bold text-muted">{c.label}</div>
-                  <div className={cn('mt-0.5 text-[13.5px] font-black', !c.ok && 'text-action')}>{c.value}</div>
-                </div>
-              ))}
+          <div className="flex min-w-0 items-center gap-4 rounded-box bg-night-2 p-4 ring-1 ring-white/[.06] md:col-start-1 md:p-5">
+            <VarScreen className="w-[88px] shrink-0 md:w-[104px]" />
+            <div>
+              <div className="font-display text-[16px] font-bold">النتايج بتتراجع</div>
+              <p className="mt-1 text-[13.5px] leading-[1.75] text-white/60">الفايزين هيتعلنوا بعد ما FPL يأكد اكتمال الجولة والبونص.</p>
             </div>
-            <div className="mt-4"><JoinButton challenge={challenge} eligible={eligible} /></div>
-          </Card>
+          </div>
         )}
 
-        {!challenge.isJoined && challenge.visibility === 'private' && !challenge.isOwner && (
-          <Notice className="mt-3.5">الانضمام لهذا التحدي برابط الدعوة فقط — اطلبه من صاحب التحدي.</Notice>
+        {side && (
+          <aside className="flex min-w-0 flex-col gap-4 md:sticky md:top-24 md:col-start-2 md:row-span-3 md:row-start-1">
+            <SideCards {...{ challenge, mine, standings, started, state, checks, eligible, canJoinHere, inviteOnly, owner, lineup, gw }} />
+          </aside>
         )}
 
-        {challenge.isOwner && challenge.visibility === 'private' && <OwnerPanel challenge={challenge} gw={gw} />}
-
-        <section className="mt-6">
-          <SectionTitle aside={state === 'closing' ? <Chip variant="ink">جارٍ التثبيت</Chip> : started ? <LiveChip>مباشر · كل دقيقة</LiveChip> : <Chip variant="ink">يبدأ الحساب مع GW {challenge.startEvent}</Chip>}>
-            الترتيب
-          </SectionTitle>
-          {standingsPending ? <Loading label="جارٍ تحميل الترتيب…" /> : (
-            <Standings standings={standings} meId={me?._id} pending={state === 'closing' ? 'في انتظار تثبيت النتائج' : 'النقاط تُحسب مع أول جولة'} emptyHint={challenge.isOwner ? 'شارك رابط الدعوة وابدأ المنافسة' : undefined} />
+        <section className="min-w-0 md:col-start-1">
+          <SectionHead
+            title="الترتيب"
+            aside={
+              state === 'closing' ? <Tag>جارٍ التثبيت</Tag>
+              : started ? <Tag tone="live">{standingsFetching ? 'بيتحدّث…' : 'مباشر · كل دقيقة'}</Tag>
+              : <Tag>الحساب يبدأ مع GW {challenge.startEvent}</Tag>
+            }
+          />
+          {standingsPending ? (
+            <Loader label="جارٍ تحميل الترتيب…" className="py-10" />
+          ) : (
+            <Standings
+              standings={standings}
+              meId={me?._id}
+              pending={state === 'closing' ? 'في انتظار تثبيت النتائج' : 'النقاط تُحسب مع أول جولة'}
+              emptyHint={challenge.isOwner ? 'ابعت رابط الدعوة وابدأ المنافسة' : undefined}
+            />
           )}
         </section>
+      </div>
+    </AppPage>
+  );
+}
 
-        {challenge.isJoined && state === 'live' && (
-          <div className="mt-6"><Button size="lg" full href={FPL_TEAM_URL}>اضبط تشكيلتك</Button></div>
-        )}
-      </Page>
+// What *you* can do here — beside the table on desktop, above it on phones.
+function SideCards({ challenge, mine, standings, started, state, checks, eligible, canJoinHere, inviteOnly, owner, lineup, gw }) {
+  return (
+    <>
+      {mine && <MyPosition entry={mine.entry} rank={mine.rank} total={standings.length} started={started && state !== 'closing'} />}
+
+      {lineup && (
+        <Button size="lg" knob full href={FPL_TEAM_URL}>اضبط تشكيلتك</Button>
+      )}
+
+      {canJoinHere && (
+        <Panel className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-[17px] font-bold">شروط الانضمام</h2>
+            {eligible && <Tag tone="pitch">فريقك مطابق</Tag>}
+          </div>
+          <Eligibility checks={checks} className="sm:grid-cols-1" />
+          <JoinButton challenge={challenge} eligible={eligible} />
+        </Panel>
+      )}
+
+      {inviteOnly && <Notice icon={<LockIcon size={16} />}>الانضمام للتحدي ده برابط الدعوة بس — اطلبه من صاحب التحدي.</Notice>}
+
+      {owner && <OwnerPanel challenge={challenge} gw={gw} />}
     </>
   );
 }
@@ -193,7 +258,6 @@ function LiveView({ challenge, standings, standingsPending, me, gw }) {
 function ChampionsView({ challenge, standings, me }) {
   const ranked = standings.map((entry, index) => ({ ...entry, rank: rankOf(entry, index) })).sort((a, b) => a.rank - b.rank);
   const top3 = ranked.length ? ranked.slice(0, 3) : (challenge.winners || []).map((w) => ({ ...w, challengePoints: w.points }));
-  const prizeList = prizes(challenge);
   const url = window.location.href;
 
   const share = async () => {
@@ -206,38 +270,42 @@ function ChampionsView({ challenge, standings, me }) {
   };
 
   return (
-    <>
-      <Chrome back="/challenges" title="تتويج الأبطال" right={<Chip variant="dark">انتهى</Chip>} />
-      <Page>
-        {top3.length ? <Podium challenge={challenge} top3={top3} participants={standings.length || challenge.participantCount} /> : (
-          <Empty number="0" title="انتهى التحدي بدون مشاركين" />
+    <AppPage back="/challenges">
+      <div className="flex flex-col gap-4">
+        {top3.length ? (
+          <Podium challenge={challenge} top3={top3} participants={standings.length || challenge.participantCount} />
+        ) : (
+          <Empty art={<EmptyNet />} title="التحدي خلص من غير مشاركين" />
         )}
-        <div className="mt-3.5 flex gap-2.5">
-          <Button variant="brand" size="lg" className="flex-1" onClick={share}>شارك النتيجة</Button>
-          <Button variant="secondary" size="lg" to="/challenges">التحدي القادم</Button>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 md:mx-auto md:w-full md:max-w-[560px]">
+          <Button size="lg" onClick={share}>
+            <ShareIcon size={17} />
+            شارك النتيجة
+          </Button>
+          <Button variant="secondary" size="lg" to="/challenges">التحدي الجاي</Button>
         </div>
+      </div>
 
-        {prizeList.length > 0 && (
-          <section className="mt-6">
-            <SectionTitle>الجوائز</SectionTitle>
-            <div className="space-y-2">{prizeList.map(([place, prize]) => <PrizeRow key={place} place={place} prize={prize} />)}</div>
-          </section>
-        )}
+      {prizes(challenge).length > 0 && (
+        <section>
+          <SectionHead title="الجوائز" />
+          <PrizeList challenge={challenge} className="md:grid md:grid-cols-3" />
+        </section>
+      )}
 
-        {ranked.length > 3 && (
-          <section className="mt-6">
-            <SectionTitle aside={`4 — ${fmt(ranked.length)}`}>بقية الترتيب</SectionTitle>
-            <Standings standings={standings} meId={me?._id} from={4} />
-          </section>
-        )}
-        {ranked.length > 0 && ranked.length <= 3 && (
-          <section className="mt-6">
-            <SectionTitle aside={`${fmt(ranked.length)} مشارك`}>الترتيب النهائي</SectionTitle>
-            <Standings standings={standings} meId={me?._id} />
-          </section>
-        )}
-      </Page>
-    </>
+      {ranked.length > 3 && (
+        <section>
+          <SectionHead title="بقية الترتيب" aside={<span dir="ltr" className="font-display font-semibold">4 — {fmt(ranked.length)}</span>} />
+          <Standings standings={standings} meId={me?._id} from={4} />
+        </section>
+      )}
+      {ranked.length > 0 && ranked.length <= 3 && (
+        <section>
+          <SectionHead title="الترتيب النهائي" aside={`${fmt(ranked.length)} مشارك`} />
+          <Standings standings={standings} meId={me?._id} />
+        </section>
+      )}
+    </AppPage>
   );
 }
 
@@ -246,20 +314,24 @@ export default function ChallengeDetails() {
   const { data: me } = useMe();
   const { data: gw } = useCurrentGw();
   const { data: challenge, isPending, isError } = useChallenge(id);
-  const { data: standings = [], isPending: standingsPending } = useStandings(id, challenge?.status);
+  const { data: standings = [], isPending: standingsPending, isFetching: standingsFetching } = useStandings(id, challenge?.status);
 
-  if (isPending) return <><Chrome back="/challenges" title="التحدي" /><Loading /></>;
+  if (isPending) return <AppPage back="/challenges"><PageLoader label="جارٍ فتح التحدي…" /></AppPage>;
   if (isError || !challenge) {
     return (
-      <>
-        <Chrome back="/challenges" title="التحدي" />
-        <Page><Empty number="404" title="التحدي غير موجود" hint="أو لا تملك صلاحية الوصول إليه" action={<Button variant="secondary" to="/challenges">كل التحديات</Button>} /></Page>
-      </>
+      <AppPage back="/challenges" narrow>
+        <Empty
+          art={<EmptyNet />}
+          title="التحدي مش موجود"
+          hint="أو معندكش صلاحية تشوفه"
+          action={<Button variant="secondary" to="/challenges">كل التحديات</Button>}
+        />
+      </AppPage>
     );
   }
 
   const state = challengeState(challenge, gw);
   return state === 'finished'
     ? <ChampionsView challenge={challenge} standings={standings} me={me} />
-    : <LiveView challenge={challenge} standings={standings} standingsPending={standingsPending} me={me} gw={gw} />;
+    : <LiveView challenge={challenge} standings={standings} standingsPending={standingsPending} standingsFetching={standingsFetching} me={me} gw={gw} />;
 }

@@ -22,10 +22,13 @@ export const usePublicChallenges = () =>
 export const useMyChallenges = () =>
   useQuery({ queryKey: KEYS.mine, queryFn: async () => (await challengesApi.mine()).data });
 
+// Shared by the hooks and the prefetch below, so both fill the same cache entry.
+const challengeQuery = (id) => ({ queryKey: KEYS.one(id), queryFn: async () => (await challengesApi.one(id)).data });
+const standingsQuery = (id) => ({ queryKey: KEYS.standings(id), queryFn: async () => (await challengesApi.standings(id)).data });
+
 export const useChallenge = (id) =>
   useQuery({
-    queryKey: KEYS.one(id),
-    queryFn: async () => (await challengesApi.one(id)).data,
+    ...challengeQuery(id),
     enabled: Boolean(id),
     // Once finalized the snapshot is immutable — stop polling.
     refetchInterval: (query) => (isFrozen(query.state.data?.status) ? false : MINUTE),
@@ -33,12 +36,22 @@ export const useChallenge = (id) =>
 
 export const useStandings = (id, status) =>
   useQuery({
-    queryKey: KEYS.standings(id),
-    queryFn: async () => (await challengesApi.standings(id)).data,
+    ...standingsQuery(id),
     enabled: Boolean(id),
     staleTime: isFrozen(status) ? Infinity : 0,
     refetchInterval: isFrozen(status) ? false : MINUTE,
   });
+
+// Warm the cache when a challenge is about to be opened (hover, focus,
+// touch) so its page paints at once. The page still refetches as usual.
+export const usePrefetchChallenge = () => {
+  const queryClient = useQueryClient();
+  return (id) => {
+    if (!id) return;
+    queryClient.prefetchQuery({ ...challengeQuery(id), staleTime: 30 * 1000 });
+    queryClient.prefetchQuery({ ...standingsQuery(id), staleTime: 30 * 1000 });
+  };
+};
 
 export const useInvite = (id, enabled) =>
   useQuery({

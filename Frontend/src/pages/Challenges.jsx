@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { cn } from '@/lib/cn';
 import { challengeState } from '@/lib/challenge';
 import { useCurrentGw } from '@/hooks/useBonus';
 import { useMyChallenges, usePublicChallenges } from '@/hooks/useChallenges';
-import { Chrome } from '@/components/layout/Chrome';
-import { Page } from '@/components/layout/Shell';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Field';
-import { Empty, Skeleton } from '@/components/ui/Misc';
+import { AppPage } from '@/components/layout/AppPage';
+import { Button, IconButton } from '@/components/kit/Button';
+import { FilterChips } from '@/components/kit/Choice';
+import { Empty, Skeleton } from '@/components/kit/Feedback';
+import { Gw } from '@/components/kit/Gw';
+import { PageTitle } from '@/components/kit/Heading';
+import { ArrowIcon, PlusIcon, SearchIcon } from '@/components/kit/icons';
+import { EmptyNet } from '@/components/art/EmptyNet';
 import { ChallengeCard } from '@/components/challenge/ChallengeCard';
 
 const FILTERS = [
@@ -19,12 +21,44 @@ const FILTERS = [
   ['mine', 'تحدياتي'],
 ];
 
-export default function Challenges() {
+// "Have a code?" — a ticket stub you type into, with the send knob.
+function CodeEntry() {
   const navigate = useNavigate();
+  const [code, setCode] = useState('');
+  const enterCode = (e) => {
+    e.preventDefault();
+    const clean = code.trim().toUpperCase();
+    if (clean) navigate(`/join/${encodeURIComponent(clean)}`);
+  };
+  return (
+    <form onSubmit={enterCode} className="ticket flex items-center gap-3 rounded-box bg-night-2 py-3 pe-3 ps-6 ring-1 ring-white/[.06]" style={{ '--cut': '50%', '--notch': '11px' }}>
+      <label htmlFor="invite-code" className="shrink-0 font-display text-[13.5px] font-semibold leading-tight text-white/60">
+        عندك كود
+        <br />
+        دعوة؟
+      </label>
+      <input
+        id="invite-code"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="ABC123"
+        dir="ltr"
+        autoComplete="off"
+        autoCapitalize="characters"
+        spellCheck={false}
+        className="sunk h-12 min-w-0 flex-1 rounded-full px-4 text-center font-display text-[17px] font-bold uppercase tracking-[.16em] text-white outline-none placeholder:text-white/20"
+      />
+      <IconButton type="submit" label="ادخل بالكود" size={48} disabled={!code.trim()} className="text-edge!">
+        <ArrowIcon size={19} />
+      </IconButton>
+    </form>
+  );
+}
+
+export default function Challenges() {
   const [params, setParams] = useSearchParams();
   const filter = params.get('f') || 'all';
   const [search, setSearch] = useState('');
-  const [code, setCode] = useState('');
 
   const { data: gw } = useCurrentGw();
   const publicQuery = usePublicChallenges();
@@ -57,70 +91,71 @@ export default function Challenges() {
   });
 
   const loading = publicQuery.isPending || mineQuery.isPending;
-  const enterCode = (e) => {
-    e.preventDefault();
-    const clean = code.trim().toUpperCase();
-    if (clean) navigate(`/join/${encodeURIComponent(clean)}`);
-  };
 
   return (
-    <>
-      <Chrome title="التحديات">
-        <div className="flex items-center gap-2.5 rounded-full bg-canvas px-4 py-2.5 text-ink">
-          <span className="block h-[13px] w-[13px] shrink-0 rounded-full border-2 border-muted" aria-hidden />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث عن تحدي…"
-            className="w-full bg-transparent text-[14px] font-semibold outline-none"
-          />
-        </div>
-        <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
-          {FILTERS.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setParams(key === 'all' ? {} : { f: key })}
-              className={cn(
-                'shrink-0 rounded-full px-3.5 py-1.5 text-[12px] whitespace-nowrap',
-                filter === key ? 'bg-brand font-black text-ink' : 'border-[1.5px] border-canvas/50 font-bold text-canvas',
-              )}
-            >
-              {label}
-              {key === 'live' && counts.live > 0 && ` (${counts.live})`}
-              {key === 'mine' && counts.mine > 0 && ` (${counts.mine})`}
-            </button>
-          ))}
-        </div>
-      </Chrome>
+    <AppPage>
+      <PageTitle
+        kicker={<>تحديات <Gw n={gw} /></>}
+        title="التحديات"
+        sub={counts.live ? `فيه ${counts.live} تحدي شغال دلوقتي — اختار وادخل.` : 'تحديات عامة للكل، وتحديات خاصة بينك وبين أصحابك.'}
+        aside={
+          <Button size="lg" knob to="/challenges/new" className="w-full md:w-auto">
+            <PlusIcon size={17} />
+            تحدي لأصحابك
+          </Button>
+        }
+      />
 
-      <Page wide>
-        {/* Create + invite code — the two ways in that aren't the list */}
-        <div className="grid gap-2.5 md:grid-cols-2">
-          <Button variant="secondary" full to="/challenges/new">+ إنشاء تحدي خاص</Button>
-          <form onSubmit={enterCode} className="flex gap-2">
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="عندك كود دعوة؟" dir="ltr" className="num text-center text-[15px] tracking-[.1em] py-3" autoComplete="off" />
-            <Button variant="secondary" disabled={!code.trim()} onClick={enterCode}>دخول</Button>
-          </form>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[1fr_minmax(0,420px)]">
+          <label className="sunk flex h-13 items-center gap-3 rounded-full px-4">
+            <SearchIcon size={18} className="shrink-0 text-white/40" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="دوّر على تحدي…"
+              aria-label="دوّر على تحدي"
+              className="min-w-0 flex-1 bg-transparent text-[16px] text-white outline-none placeholder:text-white/30"
+            />
+          </label>
+          <CodeEntry />
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {loading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-[214px]" />)}
-          {!loading && visible.map((c, i) => (
+        <FilterChips
+          label="فلترة التحديات"
+          value={filter}
+          onChange={(key) => setParams(key === 'all' ? {} : { f: key })}
+          options={FILTERS.map(([value, label]) => ({
+            value,
+            label,
+            count: value === 'live' ? counts.live : value === 'mine' ? counts.mine : 0,
+          }))}
+        />
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[300px]" />)}
+        </div>
+      ) : visible.length > 0 ? (
+        <div key={filter} className="grid grid-cols-[minmax(0,1fr)] animate-fadein gap-4 md:grid-cols-2">
+          {visible.map((c, i) => (
             <ChallengeCard key={`${c.role || 'public'}-${c._id}`} challenge={c} currentGw={gw} role={c.role} featured={i === 0} />
           ))}
         </div>
-
-        {!loading && !visible.length && (
-          <Empty
-            className="mt-4"
-            number={filter === 'mine' ? '00' : '0'}
-            title={filter === 'mine' ? 'لسه ما دخلت أي تحدي خاص' : search ? 'مفيش تحدي بالاسم ده' : 'مفيش تحديات هنا حاليًا'}
-            hint={filter === 'mine' ? 'أنشئ تحديك أو ادخل بكود دعوة من صاحبك' : counts.live ? `فيه ${counts.live} تحدي نشط الآن` : 'التحديات الجديدة تظهر هنا فور نشرها'}
-            action={filter === 'mine' ? <Button size="md" to="/challenges/new">إنشاء تحدي</Button> : filter !== 'all' ? <Button variant="secondary" onClick={() => setParams({})}>شوف كل التحديات</Button> : null}
-          />
-        )}
-      </Page>
-    </>
+      ) : (
+        <Empty
+          art={<EmptyNet />}
+          title={filter === 'mine' ? 'لسه ما دخلتش أي تحدي خاص' : search ? 'مفيش تحدي بالاسم ده' : 'مفيش تحديات هنا دلوقتي'}
+          hint={filter === 'mine' ? 'اعمل تحديك أو ادخل بكود دعوة من صاحبك' : counts.live ? `فيه ${counts.live} تحدي نشط دلوقتي` : 'التحديات الجديدة بتظهر هنا أول ما تتنشر'}
+          action={
+            filter === 'mine' ? <Button knob to="/challenges/new">اعمل تحدي</Button>
+            : filter !== 'all' ? <Button variant="secondary" onClick={() => setParams({})}>شوف كل التحديات</Button>
+            : null
+          }
+        />
+      )}
+    </AppPage>
   );
 }
