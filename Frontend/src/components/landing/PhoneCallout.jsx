@@ -25,7 +25,7 @@ function LoopArrow({ className }) {
 
 // The phone is the official FPL app on purpose: FPL Rush runs on your real
 // fantasy team, so the first thing to understand is "link your team".
-// landing.png stays exactly as it is.
+// landing.png stays exactly as it is (landing-*.webp are the same image, resized).
 export function PhoneCallout({ gw, className }) {
   const root = useRef(null);
 
@@ -49,13 +49,19 @@ export function PhoneCallout({ gw, className }) {
       {/* The stage — flat: it's a surface, not a button */}
       <span className="js-stage absolute left-[4%] top-[14%] aspect-square w-[56%] rounded-full border-2 border-edge bg-night-2 md:w-[60%]" aria-hidden />
       <div className="js-float relative mr-auto w-[66%] max-w-[360px] md:w-[74%] md:max-w-[480px]">
-        <img
-          src="/landing.png"
-          alt="تطبيق فانتازي البريميرليج على الهاتف"
-          width="1653"
-          height="1653"
-          className="js-phone -ml-3 block h-auto w-full drop-shadow-[0_14px_18px_rgba(0,0,0,.35)]"
-        />
+        {/* Same picture, lighter: WebP at display size first, the original PNG as fallback */}
+        <picture className="block">
+          <source type="image/webp" srcSet="/landing-640.webp 640w, /landing-960.webp 960w" sizes="(min-width: 768px) 480px, min(66vw, 360px)" />
+          <img
+            src="/landing.png"
+            alt="تطبيق فانتازي البريميرليج على الهاتف"
+            width="1653"
+            height="1653"
+            fetchPriority="high"
+            decoding="async"
+            className="js-phone -ml-3 block h-auto w-full drop-shadow-[0_14px_18px_rgba(0,0,0,.35)]"
+          />
+        </picture>
       </div>
       <div className="absolute right-0 top-[3%] flex w-[48%] flex-col items-end">
         <p className="js-note font-display text-[clamp(16px,4.6vw,23px)] font-semibold leading-[1.6] text-white">

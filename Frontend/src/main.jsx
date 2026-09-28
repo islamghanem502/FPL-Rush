@@ -26,6 +26,13 @@ const toastOptions = {
   error: { iconTheme: { primary: '#ff6b5a', secondary: '#000' } },
 };
 
+// Links from before clean URLs — /#/join/CODE in invites, /#/challenge/ID in
+// emails — still land where they point: move the hash route into the path
+// before the router reads it.
+if (window.location.hash.startsWith('#/')) {
+  window.history.replaceState(null, '', window.location.hash.slice(1));
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>

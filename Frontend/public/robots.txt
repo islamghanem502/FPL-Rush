@@ -1,0 +1,25 @@
+# Link-preview bots may read any URL, so shared invite links (/join/CODE)
+# still unfurl with the site's card in WhatsApp, Telegram, X…
+User-agent: facebookexternalhit
+User-agent: WhatsApp
+User-agent: TelegramBot
+User-agent: Twitterbot
+User-agent: Slackbot-LinkExpanding
+User-agent: Discordbot
+Allow: /
+
+# Search engines: public pages are open; everything behind sign-in is
+# off-limits (it only redirects to the login screen anyway).
+User-agent: *
+Allow: /
+Disallow: /home
+Disallow: /challenges
+Disallow: /challenge/
+Disallow: /join/
+Disallow: /public-challenge
+Disallow: /profile
+Disallow: /admin
+Disallow: /login
+Disallow: /forgot
+
+Sitemap: https://www.fplrush.app/sitemap.xml

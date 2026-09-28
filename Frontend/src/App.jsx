@@ -1,28 +1,59 @@
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from '@/components/layout/Shell';
 import { GuestOnly, RequireAuth } from '@/components/layout/RequireAuth';
 import { ScrollToTop } from '@/components/layout/ScrollToTop';
-
+import { RouteSeo } from '@/components/layout/RouteSeo';
 import Landing from '@/pages/Landing';
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import ForgotPassword from '@/pages/ForgotPassword';
-import Partnership from '@/pages/Partnership';
-import Bonus from '@/pages/Bonus';
-import Home from '@/pages/Home';
-import Challenges from '@/pages/Challenges';
-import ChallengeDetails from '@/pages/ChallengeDetails';
-import CreateChallenge from '@/pages/CreateChallenge';
-import JoinInvite from '@/pages/JoinInvite';
-import PublicChallengeInfo from '@/pages/PublicChallengeInfo';
-import Profile from '@/pages/Profile';
-import Admin from '@/pages/Admin';
 
-// Hash routing is kept on purpose: invite links from the backend are /#/join/CODE.
+// The landing ships in the first bundle (it's the page people and search
+// engines arrive on); every other screen loads on first visit.
+const load = {
+  Login: () => import('@/pages/Login'),
+  Register: () => import('@/pages/Register'),
+  ForgotPassword: () => import('@/pages/ForgotPassword'),
+  Partnership: () => import('@/pages/Partnership'),
+  Bonus: () => import('@/pages/Bonus'),
+  Home: () => import('@/pages/Home'),
+  Challenges: () => import('@/pages/Challenges'),
+  ChallengeDetails: () => import('@/pages/ChallengeDetails'),
+  CreateChallenge: () => import('@/pages/CreateChallenge'),
+  JoinInvite: () => import('@/pages/JoinInvite'),
+  PublicChallengeInfo: () => import('@/pages/PublicChallengeInfo'),
+  Profile: () => import('@/pages/Profile'),
+  Admin: () => import('@/pages/Admin'),
+};
+const Login = lazy(load.Login);
+const Register = lazy(load.Register);
+const ForgotPassword = lazy(load.ForgotPassword);
+const Partnership = lazy(load.Partnership);
+const Bonus = lazy(load.Bonus);
+const Home = lazy(load.Home);
+const Challenges = lazy(load.Challenges);
+const ChallengeDetails = lazy(load.ChallengeDetails);
+const CreateChallenge = lazy(load.CreateChallenge);
+const JoinInvite = lazy(load.JoinInvite);
+const PublicChallengeInfo = lazy(load.PublicChallengeInfo);
+const Profile = lazy(load.Profile);
+const Admin = lazy(load.Admin);
+
+// Once the first screen is idle, fetch the next likely ones so tapping
+// through never waits on a download.
+const useWarmRoutes = () =>
+  useEffect(() => {
+    const warm = () => [load.Login, load.Register, load.Home, load.Challenges, load.ChallengeDetails].forEach((get) => get().catch(() => {}));
+    const id = window.requestIdleCallback ? window.requestIdleCallback(warm, { timeout: 4000 }) : window.setTimeout(warm, 2500);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : window.clearTimeout(id));
+  }, []);
+
+// Clean URLs (/bonus, /challenge/ID). Old /#/… links are moved into the path
+// in main.jsx; Vercel serves index.html for every route (vercel.json).
 export default function App() {
+  useWarmRoutes();
   return (
-    <HashRouter>
+    <BrowserRouter>
       <ScrollToTop />
+      <RouteSeo />
       <Routes>
         <Route element={<Shell />}>
           {/* Public */}
@@ -64,6 +95,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

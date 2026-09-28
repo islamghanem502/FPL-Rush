@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { useMe } from '@/hooks/useAuth';
+import { PageLoader } from '@/components/kit/Feedback';
 import { NAV, activeNav } from './nav';
 
 // Phones, signed in: a floating switch at the bottom — the chosen place is
@@ -44,10 +46,14 @@ function TabBar() {
   );
 }
 
+// Screens load on first visit (see App) — the brand loader holds the space
+// while one arrives, and the tab bar stays put.
 export function Shell() {
   return (
     <div className="min-h-dvh overflow-x-clip bg-night">
-      <Outlet />
+      <Suspense fallback={<PageLoader full />}>
+        <Outlet />
+      </Suspense>
       <TabBar />
     </div>
   );
